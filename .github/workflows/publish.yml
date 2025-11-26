@@ -2,6 +2,8 @@ name: Publish Extension
 
 on:
   workflow_dispatch:
+    branches:
+      - main
     inputs:
       releaseType:
         description: 'Release type'
