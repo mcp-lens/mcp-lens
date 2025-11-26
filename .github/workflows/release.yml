@@ -39,9 +39,10 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.branch || github.ref }}
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -67,20 +68,21 @@ jobs:
             echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
             echo "Detected bump type: $BUMP_TYPE (from manual trigger)"
           else
-            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            # Get only the first line (title) of the commit message
+            COMMIT_TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
             
             # Default to patch
             BUMP_TYPE="patch"
             
-            # Check commit message for conventional commit type
-            if [[ "$COMMIT_MSG" =~ ^feat!:|^fix!:|BREAKING ]]; then
+            # Check commit title for conventional commit type
+            if [[ "$COMMIT_TITLE" =~ ^feat!:|^fix!:|BREAKING ]]; then
               BUMP_TYPE="major"
-            elif [[ "$COMMIT_MSG" =~ ^feat:|^feature: ]]; then
+            elif [[ "$COMMIT_TITLE" =~ ^feat:|^feature: ]]; then
               BUMP_TYPE="minor"
             fi
             
             echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
-            echo "Detected bump type: $BUMP_TYPE (from commit message)"
+            echo "Detected bump type: $BUMP_TYPE (from commit title: $COMMIT_TITLE)"
           fi
 
       - name: Calculate new version
@@ -118,25 +120,60 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TITLE="Manual release: ${{ steps.version.outputs.bump }} version bump"
           else
-            COMMIT_MSG="${{ github.event.head_commit.message }}"
-            TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+            # Get only first line of commit message
+            TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
           fi
           
-          CHANGELOG=$(cat << EOF
-          ## [$VERSION] - $DATE
-
-          $TITLE
-          EOF
-          )
-          
-          echo "content<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
+          # Write changelog to output
+          {
+            echo "content<<CHANGELOG_EOF"
+            echo "## [$VERSION] - $DATE"
+            echo ""
+            echo "$TITLE"
+            echo "CHANGELOG_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Configure Git
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Update package.json version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          npm version $NEW_VERSION --no-git-tag-version
+          echo "Updated package.json to version $NEW_VERSION"
+
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          # Get commit title
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TITLE="Manual release: ${{ steps.version.outputs.bump }} version bump"
+          else
+            TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
+          fi
+          
+          # Create temporary file with new entry
+          echo "## [$VERSION] - $DATE" > /tmp/changelog_entry.txt
+          echo "" >> /tmp/changelog_entry.txt
+          echo "### Changed" >> /tmp/changelog_entry.txt
+          echo "- $TITLE" >> /tmp/changelog_entry.txt
+          echo "" >> /tmp/changelog_entry.txt
+          
+          # Insert after "## [Unreleased]" line
+          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            awk '/## \[Unreleased\]/ {print; print ""; system("cat /tmp/changelog_entry.txt"); next}1' CHANGELOG.md > /tmp/CHANGELOG.md.new
+            mv /tmp/CHANGELOG.md.new CHANGELOG.md
+          else
+            # If no Unreleased section, add at the top after header
+            awk 'NR==1,/^$/ {print; if(/^$/ && !done) {system("cat /tmp/changelog_entry.txt"); done=1}; next}1' CHANGELOG.md > /tmp/CHANGELOG.md.new
+            mv /tmp/CHANGELOG.md.new CHANGELOG.md
+          fi
+          
+          echo "Updated CHANGELOG.md with version $VERSION"
 
       - name: Clean up existing tag
         run: |
@@ -147,9 +184,19 @@ jobs:
           git push origin :refs/tags/$TAG 2>/dev/null || true
           echo "Cleaned up any existing $TAG tag"
 
-      - name: Create release tag
+      - name: Create release tag and push version bump
         run: |
+          # Commit the version bump and changelog
+          git add package.json package-lock.json CHANGELOG.md
+          git commit -m "chore: release v${{ steps.new_version.outputs.version }}" || true
+          
+          # Create annotated tag
           git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
+          
+          # Push the version bump commit to main
+          git push origin HEAD:main
+          
+          # Push the tag
           git push origin v${{ steps.new_version.outputs.version }}
 
       - name: Create GitHub Release
@@ -180,7 +227,7 @@ jobs:
           ref: v${{ needs.create-release.outputs.version }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
