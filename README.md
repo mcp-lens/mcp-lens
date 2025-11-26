@@ -74,6 +74,14 @@ Comprehensive view of individual MCP servers with detailed information and contr
 
 Search for "MCP Lens" in the VS Code Extensions marketplace and click Install.
 
+## Support
+
+**Current Version (v1.0):**
+- ✅ **Visual Studio Code**: Fully supported
+- 🔜 **Other IDEs**: Support for additional IDEs will be released based on community adoption and feedback
+
+We're committed to expanding IDE support in future releases. If you'd like to see MCP Lens in your favorite IDE, please [let us know](https://github.com/mcp-lens/mcp-lens/issues/new?template=feature_request.yml)!
+
 ## Contributing
 
 Contributions are welcome! We appreciate bug reports, feature requests, and pull requests.
