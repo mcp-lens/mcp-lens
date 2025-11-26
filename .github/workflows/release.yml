@@ -138,6 +138,12 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
+      - name: Update package.json version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          npm version $NEW_VERSION --no-git-tag-version
+          echo "Updated package.json to version $NEW_VERSION"
+
       - name: Clean up existing tag
         run: |
           TAG="v${{ steps.new_version.outputs.version }}"
@@ -149,6 +155,9 @@ jobs:
 
       - name: Create release tag
         run: |
+          # Commit the version bump to create a proper tag
+          git add package.json package-lock.json
+          git commit -m "chore: release v${{ steps.new_version.outputs.version }}" || true
           git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
           git push origin v${{ steps.new_version.outputs.version }}
 
