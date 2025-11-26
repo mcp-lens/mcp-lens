@@ -2,17 +2,9 @@ name: Publish Extension
 
 on:
   workflow_dispatch:
-    branches:
-      - main
-    inputs:
-      releaseType:
-        description: 'Release type'
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+  push:
+    tags:
+      - 'v*.*.*'
 
 jobs:
   publish:
@@ -40,72 +32,24 @@ jobs:
       - name: Compile
         run: npm run compile
 
-      - name: Configure Git
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-
-      - name: Calculate next version
-        id: next_version
-        run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          RELEASE_TYPE="${{ github.event.inputs.releaseType }}"
-          
-          # Parse version
-          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-          
-          # Increment based on release type
-          if [ "$RELEASE_TYPE" = "major" ]; then
-            major=$((major + 1))
-            minor=0
-            patch=0
-          elif [ "$RELEASE_TYPE" = "minor" ]; then
-            minor=$((minor + 1))
-            patch=0
-          else
-            patch=$((patch + 1))
-          fi
-          
-          NEXT_VERSION="$major.$minor.$patch"
-          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-          
-          # Delete tag if it exists
-          git tag -d "v$NEXT_VERSION" 2>/dev/null || true
-          git push origin ":refs/tags/v$NEXT_VERSION" 2>/dev/null || true
+      - name: Get version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Publish to Marketplace
-        run: npx @vscode/vsce publish ${{ github.event.inputs.releaseType }}
+        run: npx @vscode/vsce publish --no-git-tag-version --no-update-package-json
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-      - name: Create release branch and PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BRANCH_NAME="release/v${{ steps.next_version.outputs.version }}"
-          git checkout -b $BRANCH_NAME
-          git push origin $BRANCH_NAME
-          git push origin v${{ steps.next_version.outputs.version }}
-          
-          gh pr create \
-            --base main \
-            --head $BRANCH_NAME \
-            --title "chore: release v${{ steps.next_version.outputs.version }}" \
-            --body "Automated release PR for v${{ steps.next_version.outputs.version }}
-
-          This PR contains the version bump after publishing to the VS Code Marketplace.
-          
-          Published to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)"
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.next_version.outputs.version }}
-          release_name: v${{ steps.next_version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: v${{ steps.version.outputs.version }}
           body: |
-            ## Release v${{ steps.next_version.outputs.version }}
+            ## Release v${{ steps.version.outputs.version }}
             
             Published to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)
           draft: false
