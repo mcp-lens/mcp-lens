@@ -156,13 +156,11 @@ jobs:
           fi
           
           # Create temporary file with new entry
-          cat > /tmp/changelog_entry.txt << EOF
-## [$VERSION] - $DATE
-
-### Changed
-- $TITLE
-
-EOF
+          echo "## [$VERSION] - $DATE" > /tmp/changelog_entry.txt
+          echo "" >> /tmp/changelog_entry.txt
+          echo "### Changed" >> /tmp/changelog_entry.txt
+          echo "- $TITLE" >> /tmp/changelog_entry.txt
+          echo "" >> /tmp/changelog_entry.txt
           
           # Insert after "## [Unreleased]" line
           if grep -q "## \[Unreleased\]" CHANGELOG.md; then
