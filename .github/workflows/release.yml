@@ -122,16 +122,14 @@ jobs:
             TITLE=$(echo "$COMMIT_MSG" | head -n 1)
           fi
           
-          CHANGELOG=$(cat << EOF
-          ## [$VERSION] - $DATE
-
-          $TITLE
-          EOF
-          )
-          
-          echo "content<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
+          # Write changelog to output
+          {
+            echo "content<<CHANGELOG_EOF"
+            echo "## [$VERSION] - $DATE"
+            echo ""
+            echo "$TITLE"
+            echo "CHANGELOG_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Configure Git
         run: |
