@@ -38,9 +38,28 @@ As MCP servers become integral to AI-powered development workflows, managing mul
 - 🔧 **Quick Configuration**: Direct links to edit your MCP configuration files
 - 🎨 **Theme-Aware**: Adapts seamlessly to your VS Code theme
 
-## Installation
+## Screenshots
 
-Search for "MCP Lens" in the VS Code Extensions marketplace and click Install.
+<table>
+<tr>
+<td width="50%">
+
+### MCP Server List View
+Clean, card-based interface showing all your MCP servers with real-time status indicators and tool counts.
+
+<img src="resources/screenshots/mcp-lens-list.png" alt="MCP Server List" width="100%">
+
+</td>
+<td width="50%">
+
+### Server Details View
+Comprehensive view of individual MCP servers with detailed information and control options.
+
+<img src="resources/screenshots/mcp-lens-details.png" alt="MCP Server Details" width="100%">
+
+</td>
+</tr>
+</table>
 
 ## Quick Start
 
@@ -51,91 +70,23 @@ Search for "MCP Lens" in the VS Code Extensions marketplace and click Install.
 3. **Manage Servers**: Use the play/stop/restart buttons to control servers
 4. **Configure**: Click "Configure" links to edit your MCP configuration files
 
-## MCP Configuration
+## Installation
 
-MCP Lens reads configurations from:
-
-- **Global**: `~/Library/Application Support/Code/User/mcp.json` (macOS)
-- **Workspace**: `mcp.json` in your project root (recommended for project-specific servers)
-
-### Configuration Format
-
-```json
-{
-  "mcpServers": {
-    "server-name": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-name"],
-      "env": {
-        "API_KEY": "your-api-key"
-      }
-    }
-  }
-}
-```
-
-**Learn More**:
-- [VS Code MCP Documentation](https://code.visualstudio.com/api/extension-guides/ai/mcp)
-- [MCP Configuration Format](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_configuration-format)
-- [Model Context Protocol Specification](https://modelcontextprotocol.io)
-
-## MCP Configuration Format
-
-MCP configuration files follow this structure:
-
-```json
-{
-  "mcpServers": {
-    "server-name": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-name"],
-      "env": {
-        "API_KEY": "your-key"
-      },
-      "disabled": false,
-      "alwaysAllow": ["tool1", "tool2"]
-    }
-  }
-}
-```
-
-See the `examples/` directory for sample configurations.
-
-## Requirements
-
-- Visual Studio Code 1.106.1 or higher
-- Node.js (for running MCP servers)
-
-## Inspiration
-
-MCP Lens draws inspiration from excellent tools like [Cline](https://github.com/cline/cline) and other AI-powered development extensions, focusing on making MCP server management accessible and elegant.
-
-## Development
-
-### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/mcp-lens/mcp-lens.git
-cd mcp-lens
-
-# Install dependencies
-npm install
-
-# Compile TypeScript
-npm run compile
-
-# Run in development mode
-npm run watch
-
-# Press F5 in VS Code to launch extension host
-```
+Search for "MCP Lens" in the VS Code Extensions marketplace and click Install.
 
 ## Contributing
 
-Contributions are welcome! Please see our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome! We appreciate bug reports, feature requests, and pull requests.
 
-**Quick Start:**
+**Ways to Contribute:**
+- 🐛 [Report a Bug](https://github.com/mcp-lens/mcp-lens/issues/new?template=bug_report.yml)
+- ✨ [Request a Feature](https://github.com/mcp-lens/mcp-lens/issues/new?template=feature_request.yml)
+- 📖 [Improve Documentation](https://github.com/mcp-lens/mcp-lens/issues/new?template=documentation.yml)
+- 💬 [Start a Discussion](https://github.com/mcp-lens/mcp-lens/issues/new?template=discussion.yml)
+
+Please see our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) for more details.
+
+**Development Quick Start:**
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)

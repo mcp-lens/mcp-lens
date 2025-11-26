@@ -1,0 +1,31 @@
+name: Discussion
+description: Ask questions or discuss ideas
+title: "[Discussion]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start a discussion about MCP Lens!
+
+  - type: textarea
+    id: topic
+    attributes:
+      label: Discussion Topic
+      description: What would you like to discuss?
+      placeholder: Your question or topic
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant context or background
+      placeholder: Help others understand your question or topic
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Any other relevant details
