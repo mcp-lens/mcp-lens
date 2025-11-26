@@ -42,26 +42,20 @@ As MCP servers become integral to AI-powered development workflows, managing mul
 
 ## Screenshots
 
-<table>
-<tr>
-<td width="50%">
-
-### MCP Server List View
+### 1. MCP Server List View
 Clean, card-based interface showing all your MCP servers with real-time status indicators and tool counts.
 
-<img src="resources/screenshots/mcp-lens-list.png" alt="MCP Server List" width="100%">
+<img src="resources/screenshots/01_mcp-lens-listing.png" alt="MCP Server List" width="100%">
 
-</td>
-<td width="50%">
+### 2. Server Tools Information
+Comprehensive view of individual MCP servers with detailed tool information and capabilities.
 
-### Server Details View
-Comprehensive view of individual MCP servers with detailed information and control options.
+<img src="resources/screenshots/02_mcp-lens-tools-info.png" alt="MCP Server Tools" width="100%">
 
-<img src="resources/screenshots/mcp-lens-details.png" alt="MCP Server Details" width="100%">
+### 3. Configuration Management
+Quick access to configure your MCP servers and edit configuration files.
 
-</td>
-</tr>
-</table>
+<img src="resources/screenshots/03_mcp-lens-configure.png" alt="MCP Configuration" width="100%">
 
 ## Quick Start
 

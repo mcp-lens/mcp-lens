@@ -33,7 +33,7 @@ interface JsonRpcResponse {
 }
 
 /**
- * Client for communicating with MCP servers via JSON-RPC 2.0 over stdio.
+ * Client for communicating with MCP servers via JSON-RPC 2.0 over stdio or HTTP.
  * Manages the server process lifecycle and handles bidirectional communication.
  */
 export class MCPClient {
@@ -44,6 +44,9 @@ export class MCPClient {
 		reject: (error: Error) => void;
 	}>();
 	private buffer = '';
+	private isHttpTransport = false;
+	private httpUrl?: string;
+	private sessionId?: string;
 
 	constructor(
 		private mcp: MCPItem,
@@ -52,11 +55,50 @@ export class MCPClient {
 
 	/**
 	 * Starts the MCP server process and initializes the JSON-RPC connection.
-	 * Spawns the server as a child process and performs the MCP initialization handshake.
+	 * Supports both stdio and HTTP transports.
 	 * 
 	 * @throws Error if the server fails to start or initialize
 	 */
 	async start(): Promise<void> {
+		// Check if this is an HTTP transport
+		if (this.mcp.config.type === 'http' || this.mcp.config.type === 'sse') {
+			return this.startHttpTransport();
+		}
+
+		// stdio transport
+		return this.startStdioTransport();
+	}
+
+	/**
+	 * Starts an HTTP-based MCP server connection.
+	 */
+	private async startHttpTransport(): Promise<void> {
+		this.isHttpTransport = true;
+		this.httpUrl = this.mcp.config.url;
+
+		if (!this.httpUrl) {
+			throw new Error('HTTP transport requires a URL in config');
+		}
+
+		this.outputChannel.appendLine(`Starting HTTP MCP server: ${this.httpUrl}`);
+
+		try {
+			// Initialize connection via HTTP and capture session ID
+			const initResponse = await this.initializeHttp();
+			this.outputChannel.appendLine(`[${this.mcp.name}] HTTP connection initialized successfully`);
+			if (this.sessionId) {
+				this.outputChannel.appendLine(`[${this.mcp.name}] Session ID: ${this.sessionId}`);
+			}
+		} catch (error) {
+			this.outputChannel.appendLine(`[${this.mcp.name}] HTTP initialization failed: ${error}`);
+			throw error;
+		}
+	}
+
+	/**
+	 * Starts a stdio-based MCP server process.
+	 */
+	private async startStdioTransport(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
 				const command = this.mcp.config.command;
@@ -130,6 +172,70 @@ export class MCPClient {
 	}
 
 	/**
+	 * Initializes HTTP transport with session management.
+	 * Captures the Mcp-Session-Id header from the response.
+	 */
+	private async initializeHttp(): Promise<void> {
+		if (!this.httpUrl) {
+			throw new Error('HTTP URL not configured');
+		}
+
+		const id = ++this.requestId;
+		const request: JsonRpcRequest = {
+			jsonrpc: '2.0',
+			id,
+			method: 'initialize',
+			params: {
+				protocolVersion: '2024-11-05',
+				capabilities: {
+					roots: {
+						listChanged: true
+					},
+					sampling: {}
+				},
+				clientInfo: {
+					name: 'mcp-lens',
+				version: '0.1.1'
+			}
+		}
+	};
+
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json, text/event-stream',
+		...this.mcp.config.headers,
+	};		try {
+			const response = await fetch(this.httpUrl, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify(request),
+			});
+
+			// Capture session ID from response header
+			const sessionId = response.headers.get('Mcp-Session-Id');
+			if (sessionId) {
+				this.sessionId = sessionId;
+			}
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+			}
+
+			const result = await response.json() as JsonRpcResponse;
+			
+			if (result.error) {
+				throw new Error(`Initialize failed: ${result.error.message}`);
+			}
+
+			// Send initialized notification
+			await this.sendHttpNotification('notifications/initialized');
+		} catch (error) {
+			throw new Error(`HTTP initialization failed: ${error}`);
+		}
+	}
+
+	/**
 	 * Retrieves the list of available tools from the connected MCP server.
 	 * 
 	 * @returns Promise resolving to an array of tool definitions
@@ -156,6 +262,7 @@ export class MCPClient {
 
 	/**
 	 * Sends a JSON-RPC request to the MCP server and waits for a response.
+	 * Supports both stdio and HTTP transports.
 	 * Implements a 10-second timeout for request completion.
 	 * 
 	 * @param method - The JSON-RPC method name to invoke
@@ -164,6 +271,10 @@ export class MCPClient {
 	 * @throws Error if the request times out or the process is not started
 	 */
 	private async sendRequest(method: string, params?: Record<string, unknown>): Promise<JsonRpcResponse> {
+		if (this.isHttpTransport) {
+			return this.sendHttpRequest(method, params);
+		}
+
 		return new Promise((resolve, reject) => {
 			if (!this.process?.stdin) {
 				reject(new Error('Process not started'));
@@ -191,6 +302,93 @@ export class MCPClient {
 				}
 			}, 10000);
 		});
+	}
+
+	/**
+	 * Sends a JSON-RPC request via HTTP POST.
+	 * Includes the Mcp-Session-Id header if a session has been established.
+	 * 
+	 * @param method - The JSON-RPC method name to invoke
+	 * @param params - Optional parameters for the method
+	 * @returns Promise resolving to the JSON-RPC response
+	 */
+	private async sendHttpRequest(method: string, params?: Record<string, unknown>): Promise<JsonRpcResponse> {
+		if (!this.httpUrl) {
+			throw new Error('HTTP URL not configured');
+		}
+
+		const id = ++this.requestId;
+	const request: JsonRpcRequest = {
+		jsonrpc: '2.0',
+		id,
+		method,
+		params,
+	};
+
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json, text/event-stream',
+		...this.mcp.config.headers,
+	};
+
+	// Include session ID if established
+	if (this.sessionId) {
+		headers['Mcp-Session-Id'] = this.sessionId;
+	}		try {
+			const response = await fetch(this.httpUrl, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify(request),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+			}
+
+			const result = await response.json() as JsonRpcResponse;
+			return result;
+		} catch (error) {
+			throw new Error(`HTTP request failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Sends a JSON-RPC notification via HTTP POST.
+	 * Includes the Mcp-Session-Id header if a session has been established.
+	 * 
+	 * @param method - The notification method name
+	 * @param params - Optional parameters for the notification
+	 */
+	private async sendHttpNotification(method: string, params?: Record<string, unknown>): Promise<void> {
+		if (!this.httpUrl) {
+			throw new Error('HTTP URL not configured');
+		}
+
+	const notification = {
+		jsonrpc: '2.0',
+		method,
+		params,
+	};
+
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json, text/event-stream',
+		...this.mcp.config.headers,
+	};
+
+	// Include session ID if established
+	if (this.sessionId) {
+		headers['Mcp-Session-Id'] = this.sessionId;
+	}		try {
+			await fetch(this.httpUrl, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify(notification),
+			});
+		} catch (error) {
+			this.outputChannel.appendLine(`[${this.mcp.name}] HTTP notification failed: ${error}`);
+		}
 	}
 
 	/**
@@ -276,10 +474,14 @@ export class MCPClient {
 
 	/**
 	 * Checks if the MCP server process is currently running.
+	 * For HTTP transport, always returns true if initialized.
 	 * 
 	 * @returns True if the server is running, false otherwise
 	 */
 	isRunning(): boolean {
+		if (this.isHttpTransport) {
+			return this.httpUrl !== undefined;
+		}
 		return this.process !== undefined && !this.process.killed;
 	}
 }
