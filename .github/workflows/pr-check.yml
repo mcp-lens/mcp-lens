@@ -1,4 +1,4 @@
-name: PR Check
+name: PR Validations
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   lint:
-    name: Lint Check
+    name: Lint Checks
     runs-on: ubuntu-latest
     
     steps:
