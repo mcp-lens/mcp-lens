@@ -4,7 +4,7 @@
   "description": "MCP Lens — an interactive VSCode tool for exploring both global and local MCPs effortlessly.",
   "version": "0.0.1",
   "publisher": "giri-jeedigunta",
-  "icon": "resources/mcp-lens.png",
+  "icon": "resources/mcp-lens-v1.png",
   "license": "MIT",
   "author": {
     "name": "Giri Jeedigunta",
@@ -42,7 +42,7 @@
         {
           "id": "mcp-lens-explorer",
           "title": "MCP Lens",
-          "icon": "resources/mcp-lens.svg"
+          "icon": "resources/mcp-lens-v1.svg"
         }
       ]
     },
