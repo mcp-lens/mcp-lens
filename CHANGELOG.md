@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-11-26
+
+### Changed
+- feat: Add PAT token support for bypassing branch protection (#23)
+
+
 ## [0.1.1] - 2025-01-26
 
 ### Fixed
