@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-11-26
+
+### Changed
+- fix: Update release workflow to respect branch protection rules (#21)
+
+
 ## [0.1.1] - 2025-01-26
 
 ### Fixed
