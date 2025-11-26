@@ -1,0 +1,138 @@
+name: Release Automation
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine version bump
+        id: version
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+          
+          # Default to patch
+          BUMP_TYPE="patch"
+          
+          # Check PR title for conventional commit type
+          if [[ "$PR_TITLE" =~ ^feat!:|^fix!:|BREAKING ]]; then
+            BUMP_TYPE="major"
+          elif [[ "$PR_TITLE" =~ ^feat: ]]; then
+            BUMP_TYPE="minor"
+          fi
+          
+          # Labels override title
+          if [[ "$LABELS" == *"major"* ]]; then
+            BUMP_TYPE="major"
+          elif [[ "$LABELS" == *"minor"* ]]; then
+            BUMP_TYPE="minor"
+          elif [[ "$LABELS" == *"patch"* ]]; then
+            BUMP_TYPE="patch"
+          fi
+          
+          echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          
+          BUMP_TYPE="${{ steps.version.outputs.bump }}"
+          if [ "$BUMP_TYPE" = "major" ]; then
+            major=$((major + 1))
+            minor=0
+            patch=0
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            minor=$((minor + 1))
+            patch=0
+          else
+            patch=$((patch + 1))
+          fi
+          
+          NEW_VERSION="$major.$minor.$patch"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: $CURRENT_VERSION → $NEW_VERSION"
+
+      - name: Update CHANGELOG
+        run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          
+          # Create changelog entry
+          cat > /tmp/changelog_entry.md << EOF
+          ## [$VERSION] - $DATE
+
+          ### $PR_TITLE
+
+          $PR_BODY
+
+          EOF
+          
+          # Prepend to CHANGELOG or create it
+          if [ -f CHANGELOG.md ]; then
+            cat /tmp/changelog_entry.md CHANGELOG.md > /tmp/new_changelog.md
+            mv /tmp/new_changelog.md CHANGELOG.md
+          else
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            cat /tmp/changelog_entry.md >> CHANGELOG.md
+          fi
+
+      - name: Configure Git
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Create release tag
+        run: |
+          git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
+          git push origin v${{ steps.new_version.outputs.version }}
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish --no-git-tag-version --no-update-package-json
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.new_version.outputs.version }}
+          release_name: v${{ steps.new_version.outputs.version }}
+          body: ${{ github.event.pull_request.body }}
+          draft: false
+          prerelease: false
