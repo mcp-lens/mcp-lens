@@ -23,12 +23,6 @@ const runningProcesses = new Map<string, ChildProcess>();
  */
 export async function startMCPServer(mcp: MCPItem, outputChannel: vscode.OutputChannel): Promise<boolean> {
 	try {
-		outputChannel.appendLine(`\n--- Starting MCP: ${mcp.name} ---`);
-		outputChannel.appendLine(`Command: ${mcp.config.command}`);
-		
-		if (mcp.config.args) {
-			outputChannel.appendLine(`Args: ${mcp.config.args.join(' ')}`);
-		}
 
 		// Check if already running
 		if (runningProcesses.has(mcp.name)) {
@@ -45,29 +39,22 @@ export async function startMCPServer(mcp: MCPItem, outputChannel: vscode.OutputC
 		// Track the process
 		runningProcesses.set(mcp.name, childProcess);
 
-		// Handle process output
-		childProcess.stdout?.on('data', (data: Buffer) => {
-			outputChannel.appendLine(`[${mcp.name}] ${data.toString()}`);
-		});
-
-		childProcess.stderr?.on('data', (data: Buffer) => {
-			outputChannel.appendLine(`[${mcp.name}] ERROR: ${data.toString()}`);
-		});
-
+		// Handle process lifecycle
 		childProcess.on('exit', (code: number | null) => {
-			outputChannel.appendLine(`[${mcp.name}] Process exited with code ${code}`);
+			if (code !== 0) {
+				outputChannel.appendLine(`${mcp.name} exited with code ${code}`);
+			}
 			runningProcesses.delete(mcp.name);
 		});
 
 		childProcess.on('error', (error: Error) => {
-			outputChannel.appendLine(`[${mcp.name}] Process error: ${error.message}`);
+			outputChannel.appendLine(`${mcp.name} error: ${error.message}`);
 			runningProcesses.delete(mcp.name);
 		});
 
 		vscode.window.showInformationMessage(`Started MCP: ${mcp.name}`);
 		return true;
 	} catch (error) {
-		outputChannel.appendLine(`Failed to start MCP: ${error}`);
 		vscode.window.showErrorMessage(`Failed to start MCP "${mcp.name}": ${error}`);
 		return false;
 	}
@@ -82,8 +69,6 @@ export async function startMCPServer(mcp: MCPItem, outputChannel: vscode.OutputC
  */
 export async function stopMCPServer(mcp: MCPItem, outputChannel: vscode.OutputChannel): Promise<boolean> {
 	try {
-		outputChannel.appendLine(`\n--- Stopping MCP: ${mcp.name} ---`);
-
 		const childProcess = runningProcesses.get(mcp.name);
 		if (!childProcess) {
 			vscode.window.showWarningMessage(`MCP "${mcp.name}" is not running`);
@@ -96,7 +81,6 @@ export async function stopMCPServer(mcp: MCPItem, outputChannel: vscode.OutputCh
 		vscode.window.showInformationMessage(`Stopped MCP: ${mcp.name}`);
 		return true;
 	} catch (error) {
-		outputChannel.appendLine(`Failed to stop MCP: ${error}`);
 		vscode.window.showErrorMessage(`Failed to stop MCP "${mcp.name}": ${error}`);
 		return false;
 	}
@@ -110,8 +94,6 @@ export async function stopMCPServer(mcp: MCPItem, outputChannel: vscode.OutputCh
  * @returns Promise resolving to true if restarted successfully, false otherwise
  */
 export async function restartMCPServer(mcp: MCPItem, outputChannel: vscode.OutputChannel): Promise<boolean> {
-	outputChannel.appendLine(`\n--- Restarting MCP: ${mcp.name} ---`);
-	
 	const wasRunning = runningProcesses.has(mcp.name);
 	
 	if (wasRunning) {

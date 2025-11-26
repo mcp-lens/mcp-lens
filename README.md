@@ -1,12 +1,12 @@
-<p align="center">
-  <img src="resources/mcp-lens.png" alt="MCP Lens" width="120" height="120">
-</p>
+<div align="center">
 
-<h1 align="center">MCP Lens</h1>
+# MCP Lens
 
-<p align="center">
-  <strong>An interactive Visual Studio Code extension for exploring and managing Model Context Protocol (MCP) servers</strong>
-</p>
+<img src="resources/mcp-lens.png" alt="MCP Lens" width="84" height="84">
+
+**An interactive Visual Studio Code extension for exploring and managing Model Context Protocol (MCP) servers**
+
+</div>
 
 [![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/giri-jeedigunta/mcp-lens)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

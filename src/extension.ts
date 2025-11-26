@@ -19,12 +19,6 @@ let mcpLensWebviewProvider: MCPLensWebviewProvider | undefined;
  */
 export function activate(context: vscode.ExtensionContext): void {
 	const outputChannel = vscode.window.createOutputChannel('MCP Lens');
-	outputChannel.show();
-	outputChannel.appendLine('='.repeat(80));
-	outputChannel.appendLine('MCP Lens Extension Activated!');
-	outputChannel.appendLine('='.repeat(80));
-
-	outputChannel.appendLine('Initializing MCP Lens Webview Provider...');
 	mcpLensWebviewProvider = new MCPLensWebviewProvider(context.extensionUri, outputChannel);
 
 	// Register the webview view provider
@@ -37,7 +31,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	// Register refresh command to reload MCP configurations
 	const refreshCommand = vscode.commands.registerCommand(COMMANDS.REFRESH, async () => {
-		outputChannel.appendLine('\n--- Refresh Command Triggered ---');
 		if (mcpLensWebviewProvider) {
 			await mcpLensWebviewProvider.loadMCPs();
 			vscode.window.showInformationMessage('MCP list refreshed');
@@ -48,7 +41,6 @@ export function activate(context: vscode.ExtensionContext): void {
 	const locateMCPFileCommand = vscode.commands.registerCommand(
 		COMMANDS.LOCATE_MCP_FILE,
 		async () => {
-			outputChannel.appendLine('\n--- Locate MCP File Command Triggered ---');
 			vscode.window.showInformationMessage('MCP file location feature coming soon');
 		}
 	);
@@ -60,12 +52,9 @@ export function activate(context: vscode.ExtensionContext): void {
 	);
 
 	// Initial load of MCP servers
-	outputChannel.appendLine('\n--- Initial Server Discovery ---');
 	if (mcpLensWebviewProvider) {
-		mcpLensWebviewProvider.loadMCPs().then(() => {
-			outputChannel.appendLine('Initial server discovery completed');
-		}).catch((err: unknown) => {
-			outputChannel.appendLine(`Server discovery error: ${err}`);
+		mcpLensWebviewProvider.loadMCPs().catch((err: unknown) => {
+			outputChannel.appendLine(`Error loading MCPs: ${err}`);
 		});
 	}
 }

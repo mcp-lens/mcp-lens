@@ -42,7 +42,11 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 
 		webviewView.webview.options = {
 			enableScripts: true,
-			localResourceRoots: [this._extensionUri],
+			localResourceRoots: [
+				this._extensionUri,
+				vscode.Uri.joinPath(this._extensionUri, 'resources'),
+				vscode.Uri.joinPath(this._extensionUri, 'src', 'webview')
+			],
 		};
 
 		// Load HTML template from file
@@ -63,8 +67,11 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	 * background discovery of available tools from each server.
 	 */
 	public async loadMCPs(): Promise<void> {
-		this.outputChannel.appendLine('\n--- Loading MCP Server Configurations ---');
-
+		// Reload webview HTML to ensure fresh content with latest resources
+		if (this._view) {
+			this._view.webview.html = await this._getHtmlForWebview(this._view.webview);
+		}
+		
 		// Stop all existing client connections
 		for (const client of this.mcpClients.values()) {
 			await client.stop();
@@ -73,29 +80,21 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 
 		// Load global MCP servers from user settings
 		const globalPath = getGlobalMCPPath();
-		this.outputChannel.appendLine(`Global MCP configuration path: ${globalPath}`);
 		const globalFile = await readMCPFile(globalPath);
 		this.globalMCPServers = mcpFileToItems(globalFile, true);
-		this.outputChannel.appendLine(`Discovered ${this.globalMCPServers.length} global MCP servers`);
 		
 		// Load workspace-specific MCP servers
 		const workspaceFolders = vscode.workspace.workspaceFolders;
-		this.outputChannel.appendLine(`Active workspace folders: ${workspaceFolders?.length || 0}`);
 		
 		if (workspaceFolders?.[0]) {
 			const workspacePath = getLocalMCPPath(workspaceFolders[0].uri.fsPath);
-			this.outputChannel.appendLine(`Workspace MCP configuration path: ${workspacePath}`);
 			const workspaceFile = await readMCPFile(workspacePath);
 			this.workspaceMCPServers = mcpFileToItems(workspaceFile, false);
-			this.outputChannel.appendLine(`Discovered ${this.workspaceMCPServers.length} workspace MCP servers`);
+			this.outputChannel.appendLine(`Loaded: ${globalPath} (${this.globalMCPServers.length}), ${workspacePath} (${this.workspaceMCPServers.length})`);
 		} else {
-			this.outputChannel.appendLine('No workspace folder detected - skipping workspace MCPs');
 			this.workspaceMCPServers = [];
+			this.outputChannel.appendLine(`Loaded: ${globalPath} (${this.globalMCPServers.length})`);
 		}
-
-		this.outputChannel.appendLine(
-			`Total servers: ${this.globalMCPServers.length} global, ${this.workspaceMCPServers.length} workspace`
-		);
 
 		// Update webview first to show MCPs
 		this.updateWebview();
@@ -125,7 +124,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			try {
 				await this.fetchToolsForMCP(server);
 			} catch (error) {
-				this.outputChannel.appendLine(`Failed to fetch tools from ${server.name}: ${error}`);
 				// Set default values on connection failure
 				server.tools = [];
 				server.toolCount = 0;
@@ -136,7 +134,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			}
 			
 			// Provide progressive UI updates as each server loads
-			this.outputChannel.appendLine(`UI update: ${server.name} (${server.toolCount} tools)`);
 			this.updateWebview();
 		}
 	}
@@ -148,30 +145,24 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	 * @param server - The MCP server item to query for available tools
 	 */
 	private async fetchToolsForMCP(server: MCPItem): Promise<void> {
-		this.outputChannel.appendLine(`\nQuerying server: ${server.name}`);
-
 		// Instantiate MCP client for server communication
 		const client = new MCPClient(server, this.outputChannel);
 		
 		try {
 			// Establish connection and initialize protocol
 			await client.start();
-			this.outputChannel.appendLine(`Connected to server: ${server.name}`);
 
 			// Query available tools from server
 			const tools = await client.listTools();
-			this.outputChannel.appendLine(`Discovered ${tools.length} tools from ${server.name}`);
 
 			server.tools = tools;
 			server.toolCount = tools.length;
 			server.status = 'running';
-			this.outputChannel.appendLine(`Server status: ${server.name} - ${server.status} (${server.toolCount} tools)`);
 
 			// Cache client for subsequent operations
 			this.mcpClients.set(server.name, client);
 
 		} catch (error) {
-			this.outputChannel.appendLine(`Connection error for ${server.name}: ${error}`);
 			server.status = 'error';
 			server.tools = [];
 			server.toolCount = 0;
@@ -186,16 +177,11 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	 */
 	private updateWebview(): void {
 		if (this._view && this._view.visible) {
-			this.outputChannel.appendLine(
-				`Webview update: ${this.globalMCPServers.length} global, ${this.workspaceMCPServers.length} workspace servers`
-			);
 			this._view.webview.postMessage({
 				type: 'update',
 				globalMCPs: this.globalMCPServers,
 				localMCPs: this.workspaceMCPServers,
 			});
-		} else {
-			this.outputChannel.appendLine('Webview not visible - deferring update');
 		}
 	}
 
@@ -240,8 +226,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 		if (!mcp) {
 			return;
 		}
-
-		this.outputChannel.appendLine(`Starting MCP: ${name}`);
 		
 		try {
 			await this.fetchToolsForMCP(mcp);
@@ -387,7 +371,36 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			'webview',
 			'explorerView.html'
 		);
-		const htmlContent = await fs.readFile(htmlPath, 'utf-8');
+		
+		// Get URIs for SVG icons
+		const getIconUri = (iconName: string) => {
+			return webview.asWebviewUri(
+				vscode.Uri.joinPath(this._extensionUri, 'resources', 'icons', `${iconName}.svg`)
+			);
+		};
+		
+		const playIconUri = getIconUri('play');
+		const stopIconUri = getIconUri('stop');
+		const restartIconUri = getIconUri('restart');
+		const refreshIconUri = getIconUri('refresh');
+		
+		this.outputChannel.appendLine(`Icon URIs: play=${playIconUri}, stop=${stopIconUri}`);
+		
+		let htmlContent = await fs.readFile(htmlPath, 'utf-8');
+		
+		// Inject icon URIs as JavaScript variables and replace static references
+		const iconVarsScript = `
+		// Icon URIs injected by extension
+		const ICON_PLAY = '${playIconUri.toString()}';
+		const ICON_STOP = '${stopIconUri.toString()}';
+		const ICON_RESTART = '${restartIconUri.toString()}';
+		const ICON_REFRESH = '${refreshIconUri.toString()}';
+		`;
+		
+		htmlContent = htmlContent
+			.replace('{{ICON_VARS}}', iconVarsScript)
+			.replace(/\{\{REFRESH_ICON\}\}/g, refreshIconUri.toString());
+		
 		return htmlContent;
 	}
 }
