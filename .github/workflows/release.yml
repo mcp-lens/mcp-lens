@@ -183,20 +183,62 @@ jobs:
           git push origin :refs/tags/$TAG 2>/dev/null || true
           echo "Cleaned up any existing $TAG tag"
 
-      - name: Create release tag and push version bump
+      - name: Create release branch and PR
         run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          BRANCH="release/v${VERSION}"
+          
+          # Create release branch
+          git checkout -b "$BRANCH"
+          
           # Commit the version bump and changelog
           git add package.json package-lock.json CHANGELOG.md
-          git commit -m "chore: release v${{ steps.new_version.outputs.version }}" || true
+          git commit -m "chore: release v${VERSION}"
+          
+          # Push release branch
+          git push origin "$BRANCH"
+          
+          # Create pull request
+          gh pr create \
+            --title "chore: release v${VERSION}" \
+            --body "Automated release PR for v${VERSION}" \
+            --base main \
+            --head "$BRANCH"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for PR merge
+        run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          BRANCH="release/v${VERSION}"
+          
+          echo "Waiting for PR to be merged..."
+          sleep 10
+          
+          # Check if PR is merged
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "PR #$PR_NUMBER created. Please merge it to continue the release."
+            echo "Skipping tag creation - will be done after PR merge"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release tag
+        run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          
+          # Fetch latest main
+          git fetch origin main
+          git checkout main
+          git pull origin main
           
           # Create annotated tag
-          git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
-          
-          # Push the version bump commit to main
-          git push origin HEAD:main
+          git tag -a v${VERSION} -m "Release v${VERSION}"
           
           # Push the tag
-          git push origin v${{ steps.new_version.outputs.version }}
+          git push origin v${VERSION}
+        continue-on-error: true
 
       - name: Create GitHub Release
         run: |
