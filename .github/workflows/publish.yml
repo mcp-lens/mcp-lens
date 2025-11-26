@@ -2,17 +2,9 @@ name: Publish Extension
 
 on:
   workflow_dispatch:
-    branches:
-      - main
-    inputs:
-      releaseType:
-        description: 'Release type'
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+  push:
+    tags:
+      - 'v*.*.*'
 
 jobs:
   publish:
@@ -40,38 +32,14 @@ jobs:
       - name: Compile
         run: npm run compile
 
-      - name: Configure Git
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-
-      - name: Publish to Marketplace
-        run: npx @vscode/vsce publish ${{ github.event.inputs.releaseType }}
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-      - name: Get new version
+      - name: Get version from package.json
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Create release branch and PR
+      - name: Publish to Marketplace
+        run: npx @vscode/vsce publish --no-git-tag-version --no-update-package-json
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BRANCH_NAME="release/v${{ steps.version.outputs.version }}"
-          git checkout -b $BRANCH_NAME
-          git push origin $BRANCH_NAME
-          git push origin v${{ steps.version.outputs.version }}
-          
-          gh pr create \
-            --base main \
-            --head $BRANCH_NAME \
-            --title "chore: release v${{ steps.version.outputs.version }}" \
-            --body "Automated release PR for v${{ steps.version.outputs.version }}
-
-          This PR contains the version bump after publishing to the VS Code Marketplace.
-          
-          Published to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)"
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
