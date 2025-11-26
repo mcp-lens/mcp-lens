@@ -67,20 +67,21 @@ jobs:
             echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
             echo "Detected bump type: $BUMP_TYPE (from manual trigger)"
           else
-            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            # Get only the first line (title) of the commit message
+            COMMIT_TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
             
             # Default to patch
             BUMP_TYPE="patch"
             
-            # Check commit message for conventional commit type
-            if [[ "$COMMIT_MSG" =~ ^feat!:|^fix!:|BREAKING ]]; then
+            # Check commit title for conventional commit type
+            if [[ "$COMMIT_TITLE" =~ ^feat!:|^fix!:|BREAKING ]]; then
               BUMP_TYPE="major"
-            elif [[ "$COMMIT_MSG" =~ ^feat:|^feature: ]]; then
+            elif [[ "$COMMIT_TITLE" =~ ^feat:|^feature: ]]; then
               BUMP_TYPE="minor"
             fi
             
             echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
-            echo "Detected bump type: $BUMP_TYPE (from commit message)"
+            echo "Detected bump type: $BUMP_TYPE (from commit title: $COMMIT_TITLE)"
           fi
 
       - name: Calculate new version
@@ -118,8 +119,8 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TITLE="Manual release: ${{ steps.version.outputs.bump }} version bump"
           else
-            COMMIT_MSG="${{ github.event.head_commit.message }}"
-            TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+            # Get only first line of commit message
+            TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
           fi
           
           # Write changelog to output
