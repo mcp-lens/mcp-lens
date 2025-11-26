@@ -16,17 +16,54 @@ Thank you for your interest in contributing to MCP Lens! We welcome contribution
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes following our code style
 4. Test thoroughly
-5. Commit with clear messages (`git commit -m 'Add amazing feature'`)
+5. Commit with clear messages using [Conventional Commits](https://www.conventionalcommits.org/) format:
+   - `feat: add new feature` - New features
+   - `fix: resolve bug in server discovery` - Bug fixes
+   - `docs: update README` - Documentation changes
+   - `style: format code` - Code style changes
+   - `refactor: restructure utils` - Code refactoring
+   - `test: add unit tests` - Test additions
+   - `chore: update dependencies` - Maintenance tasks
 6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+7. Open a Pull Request with a descriptive title following the same convention
 
 ### Code Style
 
 - Follow the existing TypeScript code style
 - Use ESLint for linting (`npm run lint`)
-- Write clear commit messages
+- Write clear commit messages following [Conventional Commits](https://www.conventionalcommits.org/)
 - Add comments for complex logic
 - Ensure code compiles without errors (`npm run compile`)
+
+### Commit Message Format
+
+We follow the Conventional Commits specification for clear and structured commit history:
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style/formatting (no functional changes)
+- `refactor`: Code restructuring (no functional changes)
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks, dependencies, etc.
+
+**Examples:**
+```bash
+feat: add support for SSE transport
+fix: resolve icon rendering in dark theme
+docs: update installation instructions
+refactor: extract MCP client logic into separate module
+```
 
 ### Pull Request Process
 
