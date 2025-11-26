@@ -27,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -53,14 +54,29 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Push version bump
+      - name: Create release branch and PR
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          git push origin ${{ github.ref_name }} --tags
+          BRANCH_NAME="release/v${{ steps.version.outputs.version }}"
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+          git push origin v${{ steps.version.outputs.version }}
+          
+          gh pr create \
+            --base main \
+            --head $BRANCH_NAME \
+            --title "chore: release v${{ steps.version.outputs.version }}" \
+            --body "Automated release PR for v${{ steps.version.outputs.version }}
+
+          This PR contains the version bump after publishing to the VS Code Marketplace.
+          
+          Published to [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)"
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         with:
           tag_name: v${{ steps.version.outputs.version }}
           release_name: v${{ steps.version.outputs.version }}
