@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/giri-jeedigunta/mcp-lens"
+    "url": "https://github.com/mcp-lens/mcp-lens"
   },
   "engines": {
     "vscode": "^1.106.1"
