@@ -143,6 +143,39 @@ jobs:
           npm version $NEW_VERSION --no-git-tag-version
           echo "Updated package.json to version $NEW_VERSION"
 
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          # Get commit title
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TITLE="Manual release: ${{ steps.version.outputs.bump }} version bump"
+          else
+            TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
+          fi
+          
+          # Create temporary file with new entry
+          cat > /tmp/changelog_entry.txt << EOF
+## [$VERSION] - $DATE
+
+### Changed
+- $TITLE
+
+EOF
+          
+          # Insert after "## [Unreleased]" line
+          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            awk '/## \[Unreleased\]/ {print; print ""; system("cat /tmp/changelog_entry.txt"); next}1' CHANGELOG.md > /tmp/CHANGELOG.md.new
+            mv /tmp/CHANGELOG.md.new CHANGELOG.md
+          else
+            # If no Unreleased section, add at the top after header
+            awk 'NR==1,/^$/ {print; if(/^$/ && !done) {system("cat /tmp/changelog_entry.txt"); done=1}; next}1' CHANGELOG.md > /tmp/CHANGELOG.md.new
+            mv /tmp/CHANGELOG.md.new CHANGELOG.md
+          fi
+          
+          echo "Updated CHANGELOG.md with version $VERSION"
+
       - name: Clean up existing tag
         run: |
           TAG="v${{ steps.new_version.outputs.version }}"
@@ -152,12 +185,19 @@ jobs:
           git push origin :refs/tags/$TAG 2>/dev/null || true
           echo "Cleaned up any existing $TAG tag"
 
-      - name: Create release tag
+      - name: Create release tag and push version bump
         run: |
-          # Commit the version bump to create a proper tag
-          git add package.json package-lock.json
+          # Commit the version bump and changelog
+          git add package.json package-lock.json CHANGELOG.md
           git commit -m "chore: release v${{ steps.new_version.outputs.version }}" || true
+          
+          # Create annotated tag
           git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
+          
+          # Push the version bump commit to main
+          git push origin HEAD:main
+          
+          # Push the tag
           git push origin v${{ steps.new_version.outputs.version }}
 
       - name: Create GitHub Release
