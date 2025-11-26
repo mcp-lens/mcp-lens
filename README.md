@@ -8,7 +8,9 @@
 
 </div>
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/mcp-lens/mcp-lens)
+[![Version](https://img.shields.io/visual-studio-marketplace/v/giri-jeedigunta.mcp-lens?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/giri-jeedigunta.mcp-lens)](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/giri-jeedigunta.mcp-lens)](https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
