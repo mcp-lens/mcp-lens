@@ -6,10 +6,10 @@
  */
 
 import * as vscode from 'vscode';
-import { MCPWebviewProvider } from './providers/mcpWebviewProvider';
+import { MCPLensWebviewProvider } from './providers/mcpWebviewProvider';
 import { COMMANDS } from './constants';
 
-let mcpWebviewProvider: MCPWebviewProvider | undefined;
+let mcpLensWebviewProvider: MCPLensWebviewProvider | undefined;
 
 /**
  * Activates the MCP Lens extension.
@@ -24,22 +24,22 @@ export function activate(context: vscode.ExtensionContext): void {
 	outputChannel.appendLine('MCP Lens Extension Activated!');
 	outputChannel.appendLine('='.repeat(80));
 
-	outputChannel.appendLine('Creating MCP Webview Provider...');
-	mcpWebviewProvider = new MCPWebviewProvider(context.extensionUri, outputChannel);
+	outputChannel.appendLine('Initializing MCP Lens Webview Provider...');
+	mcpLensWebviewProvider = new MCPLensWebviewProvider(context.extensionUri, outputChannel);
 
 	// Register the webview view provider
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
-			MCPWebviewProvider.viewType,
-			mcpWebviewProvider
+			MCPLensWebviewProvider.viewType,
+			mcpLensWebviewProvider
 		)
 	);
 
 	// Register refresh command to reload MCP configurations
 	const refreshCommand = vscode.commands.registerCommand(COMMANDS.REFRESH, async () => {
 		outputChannel.appendLine('\n--- Refresh Command Triggered ---');
-		if (mcpWebviewProvider) {
-			await mcpWebviewProvider.loadMCPs();
+		if (mcpLensWebviewProvider) {
+			await mcpLensWebviewProvider.loadMCPs();
 			vscode.window.showInformationMessage('MCP list refreshed');
 		}
 	});
@@ -59,23 +59,23 @@ export function activate(context: vscode.ExtensionContext): void {
 		locateMCPFileCommand
 	);
 
-	// Initial load
-	outputChannel.appendLine('\n--- Initial MCP Load ---');
-	if (mcpWebviewProvider) {
-		mcpWebviewProvider.loadMCPs().then(() => {
-			outputChannel.appendLine('Initial load completed');
+	// Initial load of MCP servers
+	outputChannel.appendLine('\n--- Initial Server Discovery ---');
+	if (mcpLensWebviewProvider) {
+		mcpLensWebviewProvider.loadMCPs().then(() => {
+			outputChannel.appendLine('Initial server discovery completed');
 		}).catch((err: unknown) => {
-			outputChannel.appendLine(`Initial load error: ${err}`);
+			outputChannel.appendLine(`Server discovery error: ${err}`);
 		});
 	}
 }
 
 /**
  * Deactivates the MCP Lens extension.
- * Performs cleanup by disposing of the webview provider and stopping all active MCP clients.
+ * Performs cleanup by disposing of the webview provider and terminating all active MCP server connections.
  */
 export async function deactivate(): Promise<void> {
-	if (mcpWebviewProvider) {
-		await mcpWebviewProvider.dispose();
+	if (mcpLensWebviewProvider) {
+		await mcpLensWebviewProvider.dispose();
 	}
 }
