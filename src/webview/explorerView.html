@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>MCP Lens Explorer</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: var(--vscode-font-family);
+			font-size: var(--vscode-font-size);
+			color: var(--vscode-foreground);
+			background-color: var(--vscode-editor-background);
+			padding: 12px;
+			overflow-x: hidden;
+		}
+
+		.header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 16px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid var(--vscode-panel-border);
+		}
+
+		.header h1 {
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+	.refresh-btn {
+		background: transparent;
+		color: var(--vscode-foreground);
+		border: none;
+		width: 20px;
+		height: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		cursor: pointer;
+		transition: opacity 0.2s ease;
+		border-radius: 50%;
+	}
+
+	.refresh-btn:hover {
+		opacity: 0.85;
+	}		.section {
+			margin-bottom: 20px;
+		}
+
+		.section-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 12px;
+			cursor: pointer;
+			padding: 4px;
+			border-radius: 4px;
+			transition: background 0.15s;
+		}
+
+		.section-header:hover {
+			background: var(--vscode-list-hoverBackground);
+		}
+
+		.section-title-container {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.section-toggle {
+			font-size: 10px;
+			transition: transform 0.2s;
+		}
+
+		.section-toggle.collapsed {
+			transform: rotate(-90deg);
+		}
+
+		.section-title {
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+			opacity: 0.9;
+		}
+
+		.configure-link {
+			font-size: 11px;
+			color: var(--vscode-textLink-foreground);
+			cursor: pointer;
+			text-decoration: none;
+			padding: 4px 6px;
+			transition: opacity 0.2s;
+			background: transparent;
+			border: none;
+			font-family: var(--vscode-font-family);
+			font-weight: normal;
+			opacity: 0.8;
+		}
+
+		.configure-link:hover {
+			opacity: 1;
+		}
+
+		.configure-link:focus-visible {
+			outline: 1px solid var(--vscode-focusBorder);
+			outline-offset: 1px;
+		}
+
+		.cards-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+			gap: 16px;
+		}
+
+		.mcp-card {
+			background: var(--vscode-sideBar-background);
+			border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+			border-radius: 8px;
+			padding: 16px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			position: relative;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+		}
+
+	.mcp-card:hover {
+		background: var(--vscode-list-hoverBackground);
+		border-color: var(--vscode-focusBorder);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+		transform: translateY(-1px);
+	}		.mcp-card.expanded {
+			grid-column: 1 / -1;
+		}
+
+		.card-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			margin-bottom: 8px;
+		}
+
+		.card-title {
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+			margin-bottom: 4px;
+		}
+
+		.status-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 3px 10px;
+			border-radius: 10px;
+			font-size: 11px;
+			font-weight: 500;
+			margin-top: 2px;
+		}
+
+		.status-badge.running {
+			background: rgba(0, 200, 0, 0.15);
+			color: #00c800;
+		}
+
+		.status-badge.stopped {
+			background: rgba(150, 150, 150, 0.15);
+			color: #999;
+		}
+
+		.status-badge.error {
+			background: rgba(255, 0, 0, 0.15);
+			color: #ff4444;
+		}
+
+		.status-badge.disabled {
+			background: rgba(150, 150, 150, 0.1);
+			color: #777;
+		}
+
+		.status-badge.unknown {
+			background: transparent;
+			padding: 3px;
+		}
+
+		.status-badge.unknown .status-dot {
+			background: #ff4444;
+		}
+
+		.status-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: currentColor;
+		}
+
+		.card-type {
+			font-size: 11px;
+			color: var(--vscode-descriptionForeground);
+			margin-bottom: 8px;
+		}
+
+		.card-description {
+			font-size: 12px;
+			color: var(--vscode-descriptionForeground);
+			line-height: 1.4;
+			margin-bottom: 10px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+		}
+
+		.card-meta {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-top: 8px;
+			font-size: 11px;
+			color: var(--vscode-descriptionForeground);
+		}
+
+		.tool-count {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.card-actions {
+			display: none;
+			gap: 11px;
+			margin-top: 16px;
+			padding-top: 16px;
+			border-top: 1px solid var(--vscode-panel-border);
+			justify-content: flex-start;
+			align-items: center;
+		}
+
+		.mcp-card.expanded .card-actions {
+			display: flex;
+		}
+
+		.action-btn {
+			width: 22px;
+			height: 22px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border: none;
+			background: transparent;
+			cursor: pointer;
+			transition: opacity 0.2s ease;
+			padding: 0;
+			border-radius: 50%;
+		}
+
+		.action-btn:hover:not(:disabled) {
+			opacity: 0.85;
+		}
+
+		.action-btn:active:not(:disabled) {
+			opacity: 0.7;
+		}
+
+		.action-btn:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+
+		/* SVG icon styling */
+		.action-btn img {
+			width: 22px;
+			height: 22px;
+			display: block;
+			pointer-events: none;
+		}
+
+		.refresh-btn img {
+			width: 20px;
+			height: 20px;
+			display: block;
+			pointer-events: none;
+		}
+
+		.refresh-btn:active:not(:disabled) img {
+			animation: rotate-refresh 0.6s linear;
+		}
+
+		@keyframes rotate-refresh {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		.expanded-details {
+			display: none;
+			margin-top: 12px;
+		}
+
+		.mcp-card.expanded .expanded-details {
+			display: block;
+		}
+
+		.detail-row {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 8px;
+			font-size: 12px;
+		}
+
+		.detail-label {
+			font-weight: 600;
+			min-width: 80px;
+			color: var(--vscode-foreground);
+		}
+
+		.detail-value {
+			color: var(--vscode-descriptionForeground);
+			word-break: break-all;
+		}
+
+		.tools-list {
+			margin-top: 8px;
+		}
+
+		.tools-header {
+			font-weight: 600;
+			margin-bottom: 6px;
+			font-size: 12px;
+		}
+
+		.env-section {
+			margin-top: 12px;
+		}
+
+		.env-editor {
+			width: 100%;
+			font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+			font-size: 11px;
+			background: var(--vscode-editor-background);
+			color: var(--vscode-editor-foreground);
+			border: 1px solid var(--vscode-input-border);
+			border-radius: 4px;
+			padding: 8px;
+			margin-top: 6px;
+			resize: vertical;
+		}
+
+		.save-env-btn {
+			margin-top: 8px;
+			padding: 6px 12px;
+			font-size: 11px;
+			background: var(--vscode-button-background);
+			color: var(--vscode-button-foreground);
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.save-env-btn:hover {
+			background: var(--vscode-button-hoverBackground);
+		}
+
+		.tools-section {
+			margin-top: 12px;
+		}
+
+		.tools-toggle {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			width: 100%;
+			padding: 8px;
+			background: var(--vscode-editor-background);
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+			color: var(--vscode-foreground);
+			font-size: 12px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.tools-toggle:hover {
+			background: var(--vscode-list-hoverBackground);
+		}
+
+		.toggle-icon {
+			font-size: 10px;
+			transition: transform 0.2s;
+		}
+
+		.tools-list {
+			margin-top: 8px;
+			padding: 8px;
+			background: var(--vscode-editor-background);
+			border: 1px solid var(--vscode-panel-border);
+			border-radius: 4px;
+		}
+
+		.tool-item {
+			padding: 8px;
+			background: var(--vscode-sideBar-background);
+			border-radius: 3px;
+			margin-bottom: 6px;
+			border: 1px solid var(--vscode-panel-border);
+		}
+
+		.tool-item:hover {
+			background: var(--vscode-list-hoverBackground);
+		}
+
+		.tool-name {
+			font-size: 12px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+			margin-bottom: 4px;
+		}
+
+		.tool-description {
+			font-size: 11px;
+			color: var(--vscode-descriptionForeground);
+			line-height: 1.4;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+		}
+
+		.loading-indicator {
+			display: inline-block;
+			width: 12px;
+			height: 12px;
+			border: 2px solid var(--vscode-progressBar-background);
+			border-top-color: transparent;
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+			margin-left: 6px;
+			vertical-align: middle;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		.empty-state {
+			text-align: center;
+			padding: 40px 20px;
+			color: var(--vscode-descriptionForeground);
+		}
+
+		.empty-state-icon {
+			font-size: 48px;
+			margin-bottom: 12px;
+			opacity: 0.3;
+		}
+
+		/* Accessibility: Focus styles for keyboard navigation */
+		*:focus-visible {
+			outline: 2px solid var(--vscode-focusBorder);
+			outline-offset: 2px;
+		}
+
+		button:focus-visible,
+		.mcp-card:focus-visible {
+			outline: 2px solid var(--vscode-focusBorder);
+			outline-offset: -2px;
+		}
+
+		.section-header:focus-visible {
+			outline: 2px solid var(--vscode-focusBorder);
+			outline-offset: 2px;
+		}
+	</style>
+</head>
+<body>
+	<header class="header" role="banner">
+		<h1 id="page-title">MCP Servers</h1>
+		<button class="refresh-btn" onclick="refresh()" title="Refresh MCP servers list" aria-label="Refresh MCP servers list">
+			<img src="{{REFRESH_ICON}}" alt="Refresh" />
+		</button>
+	</header>
+
+	<main id="content" role="main" aria-labelledby="page-title"></main>
+
+	<script>
+		{{ICON_VARS}}
+		const vscode = acquireVsCodeApi();
+		let globalMCPs = [];
+		let localMCPs = [];
+		let expandedCard = null;
+
+		window.addEventListener('message', event => {
+			const message = event.data;
+			if (message.type === 'update') {
+				globalMCPs = message.globalMCPs || [];
+				localMCPs = message.localMCPs || [];
+				render();
+			}
+		});
+
+		function refresh() {
+			vscode.postMessage({ type: 'refresh' });
+		}
+
+		function toggleCard(name, isGlobal) {
+			expandedCard = expandedCard === name ? null : name;
+			render();
+		}
+
+		function startMCP(name, isGlobal, event) {
+			event.stopPropagation();
+			vscode.postMessage({ type: 'startMCP', name, isGlobal });
+		}
+
+		function stopMCP(name, isGlobal, event) {
+			event.stopPropagation();
+			vscode.postMessage({ type: 'stopMCP', name, isGlobal });
+		}
+
+		function restartMCP(name, isGlobal, event) {
+			event.stopPropagation();
+			vscode.postMessage({ type: 'restartMCP', name, isGlobal });
+		}
+
+		function getDisplayName(name) {
+			if (name.includes('/')) {
+				const parts = name.split('/');
+				return parts[parts.length - 1];
+			}
+			return name;
+		}
+
+		function getTypeInfo(type) {
+			const types = {
+				'stdio': { icon: '⚡', description: 'Standard I/O (Local Server)' },
+				'http': { icon: '🌐', description: 'HTTP Server' },
+				'sse': { icon: '📡', description: 'Server-Sent Events' }
+			};
+			return types[type] || { icon: '❓', description: 'Unknown Type' };
+		}
+
+		function getStatusClass(mcp) {
+			if (mcp.config?.disabled) return 'disabled';
+			return mcp.status || 'unknown';
+		}
+
+		function getStatusText(status) {
+			if (status === 'unknown') return '';
+			return status;
+		}
+
+		function createCard(mcp, isGlobal) {
+			const status = getStatusClass(mcp);
+			const isExpanded = expandedCard === mcp.name;
+			const toolCount = mcp.toolCount || mcp.tools?.length || 0;
+			const displayName = getDisplayName(mcp.name);
+			const mcpType = mcp.config?.type || 'stdio';
+			const typeInfo = getTypeInfo(mcpType);
+
+			return `
+				<div class="mcp-card ${isExpanded ? 'expanded' : ''}" 
+					 role="listitem" 
+					 tabindex="0" 
+					 aria-expanded="${isExpanded}" 
+					 aria-label="${displayName} MCP server, ${status} status, ${toolCount} tools available"
+					 onclick="toggleCard('${mcp.name}', ${isGlobal})"
+					 onkeydown="handleKeyDown(event, (e) => toggleCard('${mcp.name}', ${isGlobal}))">
+					<div class="card-header">
+						<div>
+							<div class="card-title">${displayName}</div>
+							<div class="card-type" title="${typeInfo.description}" aria-label="Server type: ${typeInfo.description}">
+								<span aria-hidden="true">${typeInfo.icon}</span> ${mcpType.toUpperCase()}
+							</div>
+						</div>
+						<span class="status-badge ${status}" role="status" aria-label="Status: ${status}">
+							<span class="status-dot" aria-hidden="true"></span>
+							${getStatusText(status)}
+						</span>
+					</div>
+
+					<div class="card-meta" aria-label="Server metadata">
+						<span class="tool-count">
+							<span aria-hidden="true">🔧</span>
+							<span aria-label="${toolCount} tools available">${toolCount} tools</span>
+						</span>
+						${status === 'running' && toolCount === 0 ? '<span class="loading-indicator" role="status" aria-label="Loading tools"></span>' : ''}
+					</div>
+
+					<div class="expanded-details">
+						${mcp.config?.env && Object.keys(mcp.config.env).length > 0 ? `
+							<div class="env-section" onclick="event.stopPropagation()" style="padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
+								<label class="detail-label" for="env-${mcp.name}">Environment Variables (JSON):</label>
+								<textarea 
+									class="env-editor" 
+									id="env-${mcp.name}" 
+									rows="5"
+									aria-label="Environment variables configuration in JSON format for ${displayName}"
+									onclick="event.stopPropagation()"
+									onchange="markEnvChanged('${mcp.name}')"
+								>${JSON.stringify(mcp.config.env, null, 2)}</textarea>
+								<button 
+									class="save-env-btn" 
+									id="save-env-${mcp.name}" 
+									style="display: none;"
+									aria-label="Save environment variable changes for ${displayName}"
+									onclick="saveEnvironment('${mcp.name}', ${isGlobal}, event)"
+								><span aria-hidden="true">💾</span> Save Changes</button>
+							</div>
+						` : ''}
+						${toolCount > 0 ? `
+							<div class="tools-section" onclick="event.stopPropagation()" style="${mcp.config?.env && Object.keys(mcp.config.env).length > 0 ? 'margin-top: 12px;' : 'padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--vscode-panel-border);'}">
+								<button class="tools-toggle" 
+									 aria-expanded="false" 
+									 aria-controls="tools-${mcp.name}"
+									 aria-label="Toggle tools list for ${displayName}, ${toolCount} tools available"
+									 onclick="toggleTools('${mcp.name}', event)">
+									<span class="toggle-icon" aria-hidden="true">▶</span>
+									<span>Tools (${toolCount})</span>
+								</button>
+								<div class="tools-list" id="tools-${mcp.name}" role="list" aria-label="Available tools" style="display: none;">
+									${(mcp.tools || []).map(tool => 
+										`<div class="tool-item" 
+											 role="listitem" 
+											 tabindex="0"
+											 title="${tool.description || ''}" 
+											 aria-label="Tool: ${tool.name}, ${tool.description || 'No description'}"
+											 onclick="event.stopPropagation()">
+											<div class="tool-name">${tool.name}</div>
+											<div class="tool-description">${tool.description || 'No description'}</div>
+										</div>`
+									).join('')}
+								</div>
+							</div>
+						` : ''}
+					</div>
+
+					<div class="card-actions" role="group" aria-label="Server control actions">
+						<button class="action-btn start-btn" 
+							 title="Start ${displayName}"
+							 aria-label="Start ${displayName} server"
+							 onclick="startMCP('${mcp.name}', ${isGlobal}, event)" 
+							 ${status === 'running' ? 'disabled aria-disabled="true"' : ''}>
+							<img src="${ICON_PLAY}" alt="Start" />
+						</button>
+						<button class="action-btn stop-btn" 
+							 title="Stop ${displayName}"
+							 aria-label="Stop ${displayName} server"
+							 onclick="stopMCP('${mcp.name}', ${isGlobal}, event)" 
+							 ${status !== 'running' ? 'disabled aria-disabled="true"' : ''}>
+							<img src="${ICON_STOP}" alt="Stop" />
+						</button>
+						<button class="action-btn restart-btn" 
+							 title="Restart ${displayName}"
+							 aria-label="Restart ${displayName} server"
+							 onclick="restartMCP('${mcp.name}', ${isGlobal}, event)" 
+							 ${status !== 'running' ? 'disabled aria-disabled="true"' : ''}>
+							<img src="${ICON_RESTART}" alt="Restart" />
+						</button>
+					</div>
+				</div>
+			`;
+		}
+
+		function toggleTools(name, event) {
+			event.stopPropagation();
+			const toolsList = document.getElementById('tools-' + name);
+			const toggleIcon = event.currentTarget.querySelector('.toggle-icon');
+			const isExpanded = toolsList.style.display !== 'none';
+			
+			if (toolsList.style.display === 'none') {
+				toolsList.style.display = 'block';
+				toggleIcon.textContent = '▼';
+				event.currentTarget.setAttribute('aria-expanded', 'true');
+			} else {
+				toolsList.style.display = 'none';
+				toggleIcon.textContent = '▶';
+				event.currentTarget.setAttribute('aria-expanded', 'false');
+			}
+		}
+
+		function markEnvChanged(name) {
+			const saveBtn = document.getElementById('save-env-' + name);
+			if (saveBtn) {
+				saveBtn.style.display = 'block';
+			}
+		}
+
+		function saveEnvironment(name, isGlobal, event) {
+			event.stopPropagation();
+			const editor = document.getElementById('env-' + name);
+			try {
+				const env = JSON.parse(editor.value);
+				vscode.postMessage({ 
+					type: 'saveEnvironment', 
+					name, 
+					isGlobal, 
+					env 
+				});
+				const saveBtn = document.getElementById('save-env-' + name);
+				if (saveBtn) {
+					saveBtn.style.display = 'none';
+					saveBtn.textContent = '✓ Saved';
+					setTimeout(() => {
+						saveBtn.textContent = '💾 Save Changes';
+					}, 2000);
+				}
+			} catch (error) {
+				alert('Invalid JSON: ' + error.message);
+			}
+		}
+
+		function configure(type, event) {
+			event.stopPropagation();
+			vscode.postMessage({ type: 'configure', configType: type });
+		}
+
+		let collapsedSections = { global: false, local: false };
+
+		function toggleSection(type, event) {
+			event.stopPropagation();
+			collapsedSections[type] = !collapsedSections[type];
+			render();
+		}
+
+		function handleKeyDown(event, callback) {
+			if (event.key === 'Enter' || event.key === ' ') {
+				event.preventDefault();
+				callback(event);
+			}
+		}
+
+		function render() {
+			const content = document.getElementById('content');
+			
+			if (globalMCPs.length === 0 && localMCPs.length === 0) {
+				content.innerHTML = `
+					<div class="empty-state" role="status" aria-live="polite">
+						<div class="empty-state-icon" aria-hidden="true">📦</div>
+						<p>No MCP servers found</p>
+					</div>
+				`;
+				return;
+			}
+
+			let html = '';
+
+			if (globalMCPs.length > 0) {
+				const isCollapsed = collapsedSections.global;
+				html += `
+					<section class="section" aria-labelledby="global-section-title">
+						<div class="section-header" 
+							 role="button" 
+							 tabindex="0" 
+							 aria-expanded="${!isCollapsed}" 
+							 aria-controls="global-mcps-grid"
+							 onclick="toggleSection('global', event)"
+							 onkeydown="handleKeyDown(event, (e) => toggleSection('global', e))">
+						<div class="section-title-container">
+							<span class="section-toggle ${isCollapsed ? 'collapsed' : ''}" aria-hidden="true">▼</span>
+							<span class="section-title" id="global-section-title" title="User-level servers available across all workspaces">Global MCPs (${globalMCPs.length})</span>
+						</div>
+							<button class="configure-link" onclick="configure('global', event)" title="Open mcp.json" aria-label="Configure global MCP servers">⚙️ Configure</button>
+						</div>
+						<div id="global-mcps-grid" class="cards-grid" role="list" style="display: ${isCollapsed ? 'none' : 'grid'}">
+							${globalMCPs.map(mcp => createCard(mcp, true)).join('')}
+						</div>
+					</section>
+				`;
+			}
+
+			if (localMCPs.length > 0) {
+				const isCollapsed = collapsedSections.local;
+				html += `
+					<section class="section" aria-labelledby="local-section-title">
+						<div class="section-header" 
+							 role="button" 
+							 tabindex="0" 
+							 aria-expanded="${!isCollapsed}" 
+							 aria-controls="local-mcps-grid"
+							 onclick="toggleSection('local', event)"
+							 onkeydown="handleKeyDown(event, (e) => toggleSection('local', e))">
+						<div class="section-title-container">
+							<span class="section-toggle ${isCollapsed ? 'collapsed' : ''}" aria-hidden="true">▼</span>
+							<span class="section-title" id="local-section-title" title="Project-specific servers for this workspace only">Workspace MCPs (${localMCPs.length})</span>
+						</div>
+							<button class="configure-link" onclick="configure('local', event)" title="Open .vscode/mcp.json" aria-label="Configure local workspace MCP servers">⚙️ Configure</button>
+						</div>
+						<div id="local-mcps-grid" class="cards-grid" role="list" style="display: ${isCollapsed ? 'none' : 'grid'}">
+							${localMCPs.map(mcp => createCard(mcp, false)).join('')}
+						</div>
+					</section>
+				`;
+			}
+
+			content.innerHTML = html;
+		}
+
+		render();
+	</script>
+</body>
+</html>
