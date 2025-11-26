@@ -11,12 +11,15 @@ permissions:
   pull-requests: write
 
 jobs:
-  release:
+  create-release:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     environment:
       name: production
       url: https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens
+    outputs:
+      version: ${{ steps.new_version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.content }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,8 +32,19 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Check current versions
+        run: |
+          echo "📦 Checking current version in VS Code Marketplace..."
+          MARKETPLACE_INFO=$(curl -s "https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens" | grep -o '"version":"[^"]*"' | head -1 || echo '"version":"unknown"')
+          MARKETPLACE_VERSION=$(echo $MARKETPLACE_INFO | grep -o '[0-9]*\.[0-9]*\.[0-9]*' || echo "not found")
+          
+          CURRENT_VERSION=$(node -pe "require('./package.json').version")
+          
+          echo "🏪 Current marketplace version: $MARKETPLACE_VERSION"
+          echo "📂 Current package.json version: $CURRENT_VERSION"
+          echo ""
+          echo "ℹ️  PR Title: ${{ github.event.pull_request.title }}"
+          echo "ℹ️  PR Labels: ${{ join(github.event.pull_request.labels.*.name, ', ') }}"
 
       - name: Determine version bump
         id: version
@@ -62,7 +76,7 @@ jobs:
       - name: Calculate new version
         id: new_version
         run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          CURRENT_VERSION=$(node -pe "require('./package.json').version")
           IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
           
           BUMP_TYPE="${{ steps.version.outputs.bump }}"
@@ -79,34 +93,31 @@ jobs:
           
           NEW_VERSION="$major.$minor.$patch"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo ""
+          echo "🎯 Version bump type: $BUMP_TYPE"
           echo "📦 Version: $CURRENT_VERSION → $NEW_VERSION"
+          echo ""
 
-      - name: Update CHANGELOG
+      - name: Generate CHANGELOG
+        id: changelog
         run: |
           VERSION="${{ steps.new_version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
           PR_BODY="${{ github.event.pull_request.body }}"
           PR_TITLE="${{ github.event.pull_request.title }}"
           
-          # Create changelog entry
-          cat > /tmp/changelog_entry.md << EOF
+          CHANGELOG=$(cat << EOF
           ## [$VERSION] - $DATE
 
           ### $PR_TITLE
 
           $PR_BODY
-
           EOF
+          )
           
-          # Prepend to CHANGELOG or create it
-          if [ -f CHANGELOG.md ]; then
-            cat /tmp/changelog_entry.md CHANGELOG.md > /tmp/new_changelog.md
-            mv /tmp/new_changelog.md CHANGELOG.md
-          else
-            echo "# Changelog" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            cat /tmp/changelog_entry.md >> CHANGELOG.md
-          fi
+          echo "content<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
 
       - name: Configure Git
         run: |
@@ -118,14 +129,6 @@ jobs:
           git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
           git push origin v${{ steps.new_version.outputs.version }}
 
-      - name: Compile
-        run: npm run compile
-
-      - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --no-git-tag-version --no-update-package-json
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
@@ -133,6 +136,45 @@ jobs:
         with:
           tag_name: v${{ steps.new_version.outputs.version }}
           release_name: v${{ steps.new_version.outputs.version }}
-          body: ${{ github.event.pull_request.body }}
+          body: ${{ steps.changelog.outputs.content }}
           draft: false
           prerelease: false
+
+      - name: Release Summary
+        run: |
+          echo "✅ Release v${{ steps.new_version.outputs.version }} created successfully!"
+          echo "📋 Next: Marketplace publish job will run automatically"
+          echo "🔗 GitHub Release: https://github.com/mcp-lens/mcp-lens/releases/tag/v${{ steps.new_version.outputs.version }}"
+
+  publish:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.create-release.outputs.version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Package extension
+        run: |
+          echo "📦 Packaging extension v${{ needs.create-release.outputs.version }}..."
+          npx @vscode/vsce package --no-git-tag-version
+
+      - name: Publish to VS Code Marketplace
+        run: |
+          echo "🚀 Publishing to VS Code Marketplace..."
+          npx @vscode/vsce publish --no-git-tag-version --no-update-package-json
+          echo "✅ Successfully published v${{ needs.create-release.outputs.version }} to marketplace!"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
