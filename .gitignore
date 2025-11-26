@@ -1,0 +1,42 @@
+# Build output
+out/
+dist/
+*.vsix
+
+# Dependencies
+node_modules/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+.vscode-test/
+*.test.log
+src/test/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+*.swp
+*.swo
+*~
+.vscode/AGENTS.md
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Development files
+TESTING.md
+DEVELOPMENT.md
+IMPLEMENTATION_SUMMARY.md
+vsc-extension-quickstart.md
+mcp-lens-md
+examples/
+
+# Debug/test MCP files
+.vscode/mcp.json

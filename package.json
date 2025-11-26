@@ -1,0 +1,189 @@
+{
+  "name": "mcp-lens",
+  "displayName": "MCP Lens",
+  "description": "MCP Lens — an interactive VSCode tool for exploring both global and local MCPs effortlessly.",
+  "version": "0.0.1",
+  "publisher": "giri-jeedigunta",
+  "icon": "resources/mcp-lens.png",
+  "license": "MIT",
+  "author": {
+    "name": "Giri Jeedigunta",
+    "email": "giri.jeedigunta@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/giri-jeedigunta/mcp-lens"
+  },
+  "engines": {
+    "vscode": "^1.106.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "explorer",
+    "tools",
+    "inspector"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mcp-lens-explorer",
+          "title": "MCP Lens",
+          "icon": "resources/mcp-lens.svg"
+        }
+      ]
+    },
+    "views": {
+      "mcp-lens-explorer": [
+        {
+          "id": "mcpExplorer",
+          "name": "MCP Explorer",
+          "contextualTitle": "MCP Lens",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mcp-lens.refresh",
+        "title": "Refresh MCP List",
+        "category": "MCP Lens",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mcp-lens.filterBoth",
+        "title": "Show Both Global and Local MCPs",
+        "category": "MCP Lens",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "mcp-lens.filterGlobal",
+        "title": "Show Global MCPs Only",
+        "category": "MCP Lens",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "mcp-lens.filterLocal",
+        "title": "Show Local MCPs Only",
+        "category": "MCP Lens",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "mcp-lens.openMCPDetails",
+        "title": "Open MCP Details",
+        "category": "MCP Lens"
+      },
+      {
+        "command": "mcp-lens.locateMCPFile",
+        "title": "Locate MCP File",
+        "category": "MCP Lens",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "mcp-lens.startMCP",
+        "title": "Start MCP Server",
+        "category": "MCP Lens",
+        "icon": "$(play)"
+      },
+      {
+        "command": "mcp-lens.stopMCP",
+        "title": "Stop MCP Server",
+        "category": "MCP Lens",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "mcp-lens.restartMCP",
+        "title": "Restart MCP Server",
+        "category": "MCP Lens",
+        "icon": "$(debug-restart)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mcp-lens.refresh",
+          "when": "view == mcpExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mcp-lens.filterBoth",
+          "when": "view == mcpExplorer",
+          "group": "1_filter@1"
+        },
+        {
+          "command": "mcp-lens.filterGlobal",
+          "when": "view == mcpExplorer",
+          "group": "1_filter@2"
+        },
+        {
+          "command": "mcp-lens.filterLocal",
+          "when": "view == mcpExplorer",
+          "group": "1_filter@3"
+        },
+        {
+          "command": "mcp-lens.locateMCPFile",
+          "when": "view == mcpExplorer",
+          "group": "2_workspace@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mcp-lens.startMCP",
+          "when": "view == mcpExplorer && viewItem == mcp-status",
+          "group": "inline@1"
+        },
+        {
+          "command": "mcp-lens.stopMCP",
+          "when": "view == mcpExplorer && viewItem == mcp-status",
+          "group": "inline@2"
+        },
+        {
+          "command": "mcp-lens.restartMCP",
+          "when": "view == mcpExplorer && viewItem == mcp-status",
+          "group": "inline@3"
+        },
+        {
+          "command": "mcp-lens.startMCP",
+          "when": "view == mcpExplorer && viewItem == mcp-card",
+          "group": "control@1"
+        },
+        {
+          "command": "mcp-lens.stopMCP",
+          "when": "view == mcpExplorer && viewItem == mcp-card",
+          "group": "control@2"
+        },
+        {
+          "command": "mcp-lens.restartMCP",
+          "when": "view == mcpExplorer && viewItem == mcp-card",
+          "group": "control@3"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.106.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.46.3",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
