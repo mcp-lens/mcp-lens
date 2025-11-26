@@ -1,10 +1,24 @@
-name: Release Automation
+name: Publish Extension
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+      branch:
+        description: 'Branch to release from'
+        required: false
+        default: 'main'
 
 permissions:
   contents: write
@@ -12,7 +26,6 @@ permissions:
 
 jobs:
   create-release:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -22,56 +35,53 @@ jobs:
       changelog: ${{ steps.changelog.outputs.content }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 
       - name: Check current versions
         run: |
-          echo "📦 Checking current version in VS Code Marketplace..."
+          echo "Checking current version in VS Code Marketplace..."
           MARKETPLACE_INFO=$(curl -s "https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens" | grep -o '"version":"[^"]*"' | head -1 || echo '"version":"unknown"')
           MARKETPLACE_VERSION=$(echo $MARKETPLACE_INFO | grep -o '[0-9]*\.[0-9]*\.[0-9]*' || echo "not found")
           
           CURRENT_VERSION=$(node -pe "require('./package.json').version")
           
-          echo "🏪 Current marketplace version: $MARKETPLACE_VERSION"
-          echo "📂 Current package.json version: $CURRENT_VERSION"
+          echo "Current marketplace version: $MARKETPLACE_VERSION"
+          echo "Current package.json version: $CURRENT_VERSION"
           echo ""
-          echo "ℹ️  PR Title: ${{ github.event.pull_request.title }}"
-          echo "ℹ️  PR Labels: ${{ join(github.event.pull_request.labels.*.name, ', ') }}"
+          echo "Latest commit: ${{ github.event.head_commit.message }}"
 
       - name: Determine version bump
         id: version
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
-          
-          # Default to patch
-          BUMP_TYPE="patch"
-          
-          # Check PR title for conventional commit type
-          if [[ "$PR_TITLE" =~ ^feat!:|^fix!:|BREAKING ]]; then
-            BUMP_TYPE="major"
-          elif [[ "$PR_TITLE" =~ ^feat: ]]; then
-            BUMP_TYPE="minor"
-          fi
-          
-          # Labels override title
-          if [[ "$LABELS" == *"major"* ]]; then
-            BUMP_TYPE="major"
-          elif [[ "$LABELS" == *"minor"* ]]; then
-            BUMP_TYPE="minor"
-          elif [[ "$LABELS" == *"patch"* ]]; then
+          # Check if triggered by workflow_dispatch
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+            echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
+            echo "Detected bump type: $BUMP_TYPE (from manual trigger)"
+          else
+            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            
+            # Default to patch
             BUMP_TYPE="patch"
+            
+            # Check commit message for conventional commit type
+            if [[ "$COMMIT_MSG" =~ ^feat!:|^fix!:|BREAKING ]]; then
+              BUMP_TYPE="major"
+            elif [[ "$COMMIT_MSG" =~ ^feat:|^feature: ]]; then
+              BUMP_TYPE="minor"
+            fi
+            
+            echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
+            echo "Detected bump type: $BUMP_TYPE (from commit message)"
           fi
-          
-          echo "bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
         id: new_version
@@ -94,8 +104,8 @@ jobs:
           NEW_VERSION="$major.$minor.$patch"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo ""
-          echo "🎯 Version bump type: $BUMP_TYPE"
-          echo "📦 Version: $CURRENT_VERSION → $NEW_VERSION"
+          echo "Version bump type: $BUMP_TYPE"
+          echo "Version: $CURRENT_VERSION -> $NEW_VERSION"
           echo ""
 
       - name: Generate CHANGELOG
@@ -103,15 +113,19 @@ jobs:
         run: |
           VERSION="${{ steps.new_version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
-          PR_BODY="${{ github.event.pull_request.body }}"
-          PR_TITLE="${{ github.event.pull_request.title }}"
+          
+          # Get changelog content based on trigger type
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TITLE="Manual release: ${{ steps.version.outputs.bump }} version bump"
+          else
+            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+          fi
           
           CHANGELOG=$(cat << EOF
           ## [$VERSION] - $DATE
 
-          ### $PR_TITLE
-
-          $PR_BODY
+          $TITLE
           EOF
           )
           
@@ -124,39 +138,49 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
+      - name: Clean up existing tag
+        run: |
+          TAG="v${{ steps.new_version.outputs.version }}"
+          # Delete local tag if exists
+          git tag -d $TAG 2>/dev/null || true
+          # Delete remote tag if exists
+          git push origin :refs/tags/$TAG 2>/dev/null || true
+          echo "Cleaned up any existing $TAG tag"
+
       - name: Create release tag
         run: |
           git tag -a v${{ steps.new_version.outputs.version }} -m "Release v${{ steps.new_version.outputs.version }}"
           git push origin v${{ steps.new_version.outputs.version }}
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
+        run: |
+          cat << 'NOTES_EOF' > release_notes.txt
+          ${{ steps.changelog.outputs.content }}
+          NOTES_EOF
+          
+          gh release create v${{ steps.new_version.outputs.version }} \
+            --title "v${{ steps.new_version.outputs.version }}" \
+            --notes-file release_notes.txt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.new_version.outputs.version }}
-          release_name: v${{ steps.new_version.outputs.version }}
-          body: ${{ steps.changelog.outputs.content }}
-          draft: false
-          prerelease: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
         run: |
-          echo "✅ Release v${{ steps.new_version.outputs.version }} created successfully!"
-          echo "📋 Next: Marketplace publish job will run automatically"
-          echo "🔗 GitHub Release: https://github.com/mcp-lens/mcp-lens/releases/tag/v${{ steps.new_version.outputs.version }}"
+          echo "Release v${{ steps.new_version.outputs.version }} created successfully!"
+          echo "Next: Marketplace publish job will run automatically"
+          echo "GitHub Release: https://github.com/mcp-lens/mcp-lens/releases/tag/v${{ steps.new_version.outputs.version }}"
 
   publish:
     needs: create-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: v${{ needs.create-release.outputs.version }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 
@@ -168,13 +192,13 @@ jobs:
 
       - name: Package extension
         run: |
-          echo "📦 Packaging extension v${{ needs.create-release.outputs.version }}..."
+          echo "Packaging extension v${{ needs.create-release.outputs.version }}..."
           npx @vscode/vsce package --no-git-tag-version
 
       - name: Publish to VS Code Marketplace
         run: |
-          echo "🚀 Publishing to VS Code Marketplace..."
+          echo "Publishing to VS Code Marketplace..."
           npx @vscode/vsce publish --no-git-tag-version --no-update-package-json
-          echo "✅ Successfully published v${{ needs.create-release.outputs.version }} to marketplace!"
+          echo "Successfully published v${{ needs.create-release.outputs.version }} to marketplace!"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}

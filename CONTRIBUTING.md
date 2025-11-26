@@ -77,7 +77,7 @@ refactor: extract MCP client logic into separate module
 
 ```bash
 # Clone the repository
-git clone https://github.com/giri-jeedigunta/mcp-lens.git
+git clone https://github.com/mcp-lens/mcp-lens.git
 cd mcp-lens
 
 # Install dependencies
