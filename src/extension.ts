@@ -7,15 +7,15 @@
 
 import * as vscode from 'vscode';
 import { MCPWebviewProvider } from './providers/mcpWebviewProvider';
-import { COMMANDS, VIEWS } from './constants';
-import { startMCPServer, stopMCPServer, restartMCPServer, stopAllMCPs } from './utils/mcpControl';
+import { COMMANDS } from './constants';
 
 let mcpWebviewProvider: MCPWebviewProvider | undefined;
 
 /**
- * Activate the extension
+ * Activates the MCP Lens extension.
+ * Initializes the webview provider, registers commands, and performs initial MCP discovery.
  * 
- * @param {vscode.ExtensionContext} context - The extension context
+ * @param context - The VS Code extension context providing access to extension resources and subscriptions
  */
 export function activate(context: vscode.ExtensionContext): void {
 	const outputChannel = vscode.window.createOutputChannel('MCP Lens');
@@ -23,18 +23,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	outputChannel.appendLine('='.repeat(80));
 	outputChannel.appendLine('MCP Lens Extension Activated!');
 	outputChannel.appendLine('='.repeat(80));
-	console.log('MCP Lens extension is now active!');
 
-	// Log icon paths for debugging
-	const iconPath = context.asAbsolutePath('resources/mcp-lens.png');
-	const svgIconPath = context.asAbsolutePath('resources/mcp-lens.svg');
-	outputChannel.appendLine(`Icon PNG path: ${iconPath}`);
-	outputChannel.appendLine(`Icon SVG path: ${svgIconPath}`);
-	const fs = require('fs');
-	outputChannel.appendLine(`PNG exists: ${fs.existsSync(iconPath)}`);
-	outputChannel.appendLine(`SVG exists: ${fs.existsSync(svgIconPath)}`);
-
-	// Create the MCP webview provider
 	outputChannel.appendLine('Creating MCP Webview Provider...');
 	mcpWebviewProvider = new MCPWebviewProvider(context.extensionUri, outputChannel);
 
@@ -46,7 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		)
 	);
 
-	// Register refresh command
+	// Register refresh command to reload MCP configurations
 	const refreshCommand = vscode.commands.registerCommand(COMMANDS.REFRESH, async () => {
 		outputChannel.appendLine('\n--- Refresh Command Triggered ---');
 		if (mcpWebviewProvider) {
@@ -55,7 +44,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		}
 	});
 
-	// Locate MCP file command
+	// Register locate MCP file command
 	const locateMCPFileCommand = vscode.commands.registerCommand(
 		COMMANDS.LOCATE_MCP_FILE,
 		async () => {
@@ -63,8 +52,6 @@ export function activate(context: vscode.ExtensionContext): void {
 			vscode.window.showInformationMessage('MCP file location feature coming soon');
 		}
 	);
-
-	// MCP control commands (handled by webview now)
 
 	// Add all commands to subscriptions
 	context.subscriptions.push(
@@ -84,15 +71,11 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Deactivate the extension
+ * Deactivates the MCP Lens extension.
+ * Performs cleanup by disposing of the webview provider and stopping all active MCP clients.
  */
 export async function deactivate(): Promise<void> {
-	// Cleanup MCP clients
 	if (mcpWebviewProvider) {
 		await mcpWebviewProvider.dispose();
 	}
-	
-	// Stop all running MCPs
-	const outputChannel = vscode.window.createOutputChannel('MCP Lens');
-	await stopAllMCPs(outputChannel);
 }

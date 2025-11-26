@@ -8,9 +8,13 @@ import * as os from 'os';
 import * as path from 'path';
 
 /**
- * Get the global MCP configuration path based on the operating system
+ * Returns the platform-specific path to the global MCP configuration file.
+ * The location varies by operating system:
+ * - macOS: ~/Library/Application Support/Code/User/mcp.json
+ * - Windows: %APPDATA%/Code/User/mcp.json
+ * - Linux: ~/.config/Code/User/mcp.json
  * 
- * @returns {string} The absolute path to the global MCP configuration file
+ * @returns The absolute path to the global MCP configuration file
  */
 export const getGlobalMCPPath = (): string => {
 	const platform = os.platform();
@@ -29,17 +33,19 @@ export const getGlobalMCPPath = (): string => {
 };
 
 /**
- * Get the local MCP configuration path relative to workspace root
+ * Returns the workspace-specific path to the local MCP configuration file.
+ * Local MCPs are stored in .vscode/mcp.json within the workspace root.
  * 
- * @param {string} workspaceRoot - The root path of the workspace
- * @returns {string} The absolute path to the local MCP configuration file
+ * @param workspaceRoot - The absolute path to the workspace root directory
+ * @returns The absolute path to the local MCP configuration file
  */
 export const getLocalMCPPath = (workspaceRoot: string): string => {
 	return path.join(workspaceRoot, '.vscode', 'mcp.json');
 };
 
 /**
- * Extension command IDs
+ * Command identifiers used throughout the MCP Lens extension.
+ * These IDs correspond to commands registered in package.json.
  */
 export const COMMANDS = {
 	REFRESH: 'mcp-lens.refresh',
@@ -55,7 +61,8 @@ export const COMMANDS = {
 } as const;
 
 /**
- * View IDs
+ * View identifiers for the MCP Lens extension views.
+ * These IDs correspond to views registered in package.json.
  */
 export const VIEWS = {
 	MCP_EXPLORER: 'mcpExplorer',

@@ -9,10 +9,10 @@ import * as path from 'path';
 import { type MCPFile, type MCPItem } from '../types';
 
 /**
- * Check if a file exists
+ * Checks if a file exists at the specified path.
  * 
- * @param {string} filePath - The path to check
- * @returns {Promise<boolean>} True if the file exists, false otherwise
+ * @param filePath - The absolute path to the file to check
+ * @returns Promise resolving to true if the file exists, false otherwise
  */
 export const fileExists = async (filePath: string): Promise<boolean> => {
 	try {
@@ -24,14 +24,11 @@ export const fileExists = async (filePath: string): Promise<boolean> => {
 };
 
 /**
- * Read and parse an MCP configuration file
+ * Strips JSON comments from a string to support JSONC format.
+ * Removes both single-line (//) and multi-line (/* *\/) comments while preserving strings.
  * 
- * @param {string} filePath - The path to the MCP JSON file
- * @returns {Promise<MCPFile | null>} The parsed MCP file or null if it doesn't exist or is invalid
- */
-/**
- * Strip JSON comments (JSONC format support)
- * Removes single-line (//) and multi-line (/* *\/) comments
+ * @param jsonString - The JSON string with potential comments
+ * @returns The cleaned JSON string without comments
  */
 const stripJsonComments = (jsonString: string): string => {
 	// Remove multi-line comments
@@ -73,6 +70,13 @@ const stripJsonComments = (jsonString: string): string => {
 	return cleanedLines.join('\n');
 };
 
+/**
+ * Reads and parses an MCP configuration file from disk.
+ * Supports JSONC format (JSON with comments) and validates the structure.
+ * 
+ * @param filePath - The absolute path to the MCP JSON configuration file
+ * @returns Promise resolving to the parsed MCP file or null if it doesn't exist or is invalid
+ */
 export const readMCPFile = async (filePath: string): Promise<MCPFile | null> => {
 	try {
 		console.log(`[fileUtils] Checking file: ${filePath}`);
@@ -110,11 +114,12 @@ export const readMCPFile = async (filePath: string): Promise<MCPFile | null> => 
 };
 
 /**
- * Convert MCP configuration to MCP items
+ * Converts MCP configuration data into MCP item instances.
+ * Transforms the raw configuration into runtime-ready objects with metadata.
  * 
- * @param {MCPFile | null} mcpFile - The parsed MCP file
- * @param {boolean} isGlobal - Whether these are global MCPs
- * @returns {MCPItem[]} Array of MCP items
+ * @param mcpFile - The parsed MCP configuration file, or null if unavailable
+ * @param isGlobal - Whether these MCPs are from global or workspace configuration
+ * @returns Array of MCP items ready for display and interaction
  */
 export const mcpFileToItems = (mcpFile: MCPFile | null, isGlobal: boolean): MCPItem[] => {
 	if (!mcpFile?.servers) {
@@ -137,23 +142,9 @@ export const mcpFileToItems = (mcpFile: MCPFile | null, isGlobal: boolean): MCPI
 };
 
 /**
- * Extract tool information from MCP inspector output
- * This is a placeholder - actual implementation would parse inspector output
+ * Ensures a directory exists, creating it recursively if necessary.
  * 
- * @param {string} mcpName - The name of the MCP
- * @returns {Promise<any>} Tool information
- */
-export const getMCPTools = async (mcpName: string): Promise<any> => {
-	// TODO: Implement actual MCP inspection
-	// This would typically involve running the MCP and querying its capabilities
-	return null;
-};
-
-/**
- * Ensure directory exists, creating it if necessary
- * 
- * @param {string} dirPath - The directory path to ensure
- * @returns {Promise<void>}
+ * @param dirPath - The absolute path to the directory to ensure
  */
 export const ensureDirectory = async (dirPath: string): Promise<void> => {
 	try {
@@ -164,11 +155,11 @@ export const ensureDirectory = async (dirPath: string): Promise<void> => {
 };
 
 /**
- * Write MCP file with proper formatting
+ * Writes an MCP configuration file to disk with proper JSON formatting.
+ * Creates parent directories if they don't exist.
  * 
- * @param {string} filePath - The path to write to
- * @param {MCPFile} content - The MCP file content
- * @returns {Promise<void>}
+ * @param filePath - The absolute path where the file should be written
+ * @param content - The MCP configuration content to write
  */
 export const writeMCPFile = async (filePath: string, content: MCPFile): Promise<void> => {
 	try {

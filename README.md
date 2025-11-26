@@ -1,6 +1,12 @@
-# MCP Lens
+<p align="center">
+  <img src="resources/mcp-lens.png" alt="MCP Lens" width="120" height="120">
+</p>
 
-**MCP Lens** is an interactive Visual Studio Code extension that provides a beautiful, intuitive interface for exploring and managing both global and local Model Context Protocol (MCP) servers.
+<h1 align="center">MCP Lens</h1>
+
+<p align="center">
+  <strong>An interactive Visual Studio Code extension for exploring and managing Model Context Protocol (MCP) servers</strong>
+</p>
 
 [![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/giri-jeedigunta/mcp-lens)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

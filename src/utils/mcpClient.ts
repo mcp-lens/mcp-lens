@@ -8,6 +8,9 @@ import * as vscode from 'vscode';
 import { spawn, type ChildProcess } from 'child_process';
 import { type MCPItem, type MCPTool } from '../types';
 
+/**
+ * JSON-RPC 2.0 request structure for MCP communication.
+ */
 interface JsonRpcRequest {
 	jsonrpc: '2.0';
 	id: number;
@@ -15,6 +18,9 @@ interface JsonRpcRequest {
 	params?: Record<string, unknown>;
 }
 
+/**
+ * JSON-RPC 2.0 response structure from MCP servers.
+ */
 interface JsonRpcResponse {
 	jsonrpc: '2.0';
 	id: number;
@@ -26,6 +32,10 @@ interface JsonRpcResponse {
 	};
 }
 
+/**
+ * Client for communicating with MCP servers via JSON-RPC 2.0 over stdio.
+ * Manages the server process lifecycle and handles bidirectional communication.
+ */
 export class MCPClient {
 	private process?: ChildProcess;
 	private requestId = 0;
@@ -41,7 +51,10 @@ export class MCPClient {
 	) {}
 
 	/**
-	 * Start the MCP server process
+	 * Starts the MCP server process and initializes the JSON-RPC connection.
+	 * Spawns the server as a child process and performs the MCP initialization handshake.
+	 * 
+	 * @throws Error if the server fails to start or initialize
 	 */
 	async start(): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -88,7 +101,10 @@ export class MCPClient {
 	}
 
 	/**
-	 * Initialize the MCP connection
+	 * Initializes the MCP connection by sending the initialize request.
+	 * Establishes protocol version and client capabilities with the server.
+	 * 
+	 * @throws Error if initialization fails
 	 */
 	private async initialize(): Promise<void> {
 		const response = await this.sendRequest('initialize', {
@@ -114,7 +130,9 @@ export class MCPClient {
 	}
 
 	/**
-	 * List available tools from the MCP server
+	 * Retrieves the list of available tools from the connected MCP server.
+	 * 
+	 * @returns Promise resolving to an array of tool definitions
 	 */
 	async listTools(): Promise<MCPTool[]> {
 		try {
@@ -137,7 +155,13 @@ export class MCPClient {
 	}
 
 	/**
-	 * Send a JSON-RPC request
+	 * Sends a JSON-RPC request to the MCP server and waits for a response.
+	 * Implements a 10-second timeout for request completion.
+	 * 
+	 * @param method - The JSON-RPC method name to invoke
+	 * @param params - Optional parameters for the method
+	 * @returns Promise resolving to the JSON-RPC response
+	 * @throws Error if the request times out or the process is not started
 	 */
 	private async sendRequest(method: string, params?: Record<string, unknown>): Promise<JsonRpcResponse> {
 		return new Promise((resolve, reject) => {
@@ -170,7 +194,11 @@ export class MCPClient {
 	}
 
 	/**
-	 * Send a JSON-RPC notification (no response expected)
+	 * Sends a JSON-RPC notification to the MCP server (no response expected).
+	 * 
+	 * @param method - The notification method name
+	 * @param params - Optional parameters for the notification
+	 * @throws Error if the process is not started
 	 */
 	private async sendNotification(method: string, params?: Record<string, unknown>): Promise<void> {
 		if (!this.process?.stdin) {
@@ -188,7 +216,10 @@ export class MCPClient {
 	}
 
 	/**
-	 * Handle stdout data from the MCP server
+	 * Handles stdout data from the MCP server.
+	 * Buffers incoming data and processes complete JSON-RPC messages line by line.
+	 * 
+	 * @param data - Raw stdout data from the server process
 	 */
 	private handleStdout(data: string): void {
 		this.buffer += data;
@@ -210,7 +241,9 @@ export class MCPClient {
 	}
 
 	/**
-	 * Handle a JSON-RPC response
+	 * Handles a JSON-RPC response by resolving the corresponding pending request.
+	 * 
+	 * @param response - The JSON-RPC response from the server
 	 */
 	private handleResponse(response: JsonRpcResponse): void {
 		if ('id' in response && typeof response.id === 'number') {
@@ -223,7 +256,7 @@ export class MCPClient {
 	}
 
 	/**
-	 * Stop the MCP server
+	 * Stops the MCP server by terminating its process.
 	 */
 	async stop(): Promise<void> {
 		if (this.process) {
@@ -233,7 +266,7 @@ export class MCPClient {
 	}
 
 	/**
-	 * Cleanup resources
+	 * Cleans up client resources by clearing pending requests and resetting state.
 	 */
 	private cleanup(): void {
 		this.pendingRequests.clear();
@@ -242,7 +275,9 @@ export class MCPClient {
 	}
 
 	/**
-	 * Check if the server is running
+	 * Checks if the MCP server process is currently running.
+	 * 
+	 * @returns True if the server is running, false otherwise
 	 */
 	isRunning(): boolean {
 		return this.process !== undefined && !this.process.killed;

@@ -5,7 +5,8 @@
  */
 
 /**
- * Represents a parameter for an MCP tool
+ * Represents a parameter definition for an MCP tool.
+ * Describes the input requirements for tool invocation.
  */
 export interface MCPToolParameter {
 	name: string;
@@ -16,7 +17,8 @@ export interface MCPToolParameter {
 }
 
 /**
- * Represents a tool available in an MCP
+ * Represents a tool exposed by an MCP server.
+ * Tools are callable functions that provide specific capabilities to AI models.
  */
 export interface MCPTool {
 	name: string;
@@ -88,7 +90,10 @@ export interface MCPCommand {
 }
 
 /**
- * Represents the structure of an MCP JSON file (VSCode format)
+ * Represents the structure of an MCP configuration file (VS Code format).
+ * This matches the schema used in mcp.json files for both global and workspace configurations.
+ * 
+ * @see https://code.visualstudio.com/docs/copilot/customization/mcp-servers
  */
 export interface MCPFile {
 	/** Map of server name to configuration */
@@ -100,7 +105,8 @@ export interface MCPFile {
 }
 
 /**
- * Represents an MCP item with runtime information
+ * Represents an MCP server instance with runtime state and metadata.
+ * Combines configuration with dynamic information like status, tools, and connection state.
  */
 export interface MCPItem {
 	name: string;
@@ -116,12 +122,15 @@ export interface MCPItem {
 }
 
 /**
- * Filter options for MCP view
+ * Filter options for displaying MCPs in the explorer view.
+ * - 'both': Show both global and workspace MCPs
+ * - 'global': Show only global MCPs (from user settings)
+ * - 'local': Show only workspace-specific MCPs
  */
 export type MCPFilter = 'both' | 'global' | 'local';
 
 /**
- * Tree item types for elegant inline UI
+ * Tree item types used in the MCP explorer view for categorizing display elements.
  */
 export type TreeItemType =
 	| 'section'
@@ -133,7 +142,7 @@ export type TreeItemType =
 	| 'resources-header';
 
 /**
- * OS-specific paths configuration
+ * Platform-specific MCP configuration file paths.
  */
 export interface OSPaths {
 	globalMCPPath: string;
