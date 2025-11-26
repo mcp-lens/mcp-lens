@@ -1,5 +1,7 @@
 /**
- * Webview Provider for MCP Explorer with elegant card grid layout
+ * Webview provider for the MCP Explorer interface.
+ * Manages the display and interaction with MCP servers through a webview-based UI.
+ * Handles MCP discovery, client lifecycle, and communication between the webview and extension.
  * 
  * @author Giri Jeedigunta <giri.jeedigunta@gmail.com>
  */
@@ -22,6 +24,10 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		private readonly outputChannel: vscode.OutputChannel
 	) {}
 
+	/**
+	 * Resolves the webview view when it becomes visible.
+	 * Sets up the webview HTML, message handlers, and initiates MCP loading.
+	 */
 	public resolveWebviewView(
 		webviewView: vscode.WebviewView,
 		context: vscode.WebviewViewResolveContext,
@@ -45,6 +51,10 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		this.loadMCPs();
 	}
 
+	/**
+	 * Loads MCP configurations from global and workspace settings.
+	 * Stops existing clients, reads configuration files, and initiates background tool discovery.
+	 */
 	public async loadMCPs(): Promise<void> {
 		this.outputChannel.appendLine('\n--- Loading MCPs for Webview ---');
 
@@ -87,13 +97,20 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		this.fetchToolsInBackground();
 	}
 
+	/**
+	 * Fetches tool information for all MCPs in the background.
+	 * Updates the UI progressively as each MCP loads.
+	 */
 	private async fetchToolsInBackground(): Promise<void> {
-		// Fetch tools for all MCPs (this may take time)
-		// Each MCP will update the UI as it loads
 		await this.enrichMCPData(this.globalMCPs);
 		await this.enrichMCPData(this.localMCPs);
 	}
 
+	/**
+	 * Enriches MCP items with runtime data by starting servers and fetching tool information.
+	 * 
+	 * @param mcps - Array of MCP items to enrich
+	 */
 	private async enrichMCPData(mcps: MCPItem[]): Promise<void> {
 		for (const mcp of mcps) {
 			// Try to fetch real tools from MCP server
@@ -116,6 +133,12 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
+	/**
+	 * Fetches tool information for a specific MCP by starting its server.
+	 * Creates an MCP client, initializes the connection, and retrieves available tools.
+	 * 
+	 * @param mcp - The MCP item to fetch tools for
+	 */
 	private async fetchToolsForMCP(mcp: MCPItem): Promise<void> {
 		this.outputChannel.appendLine(`\nFetching tools for: ${mcp.name}`);
 
@@ -149,6 +172,10 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
+	/**
+	 * Updates the webview with current MCP data.
+	 * Sends a message to the webview to refresh the displayed MCP list.
+	 */
 	private updateWebview(): void {
 		if (this._view && this._view.visible) {
 			this.outputChannel.appendLine(`Updating webview: ${this.globalMCPs.length} global, ${this.localMCPs.length} local MCPs`);
@@ -162,6 +189,12 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
+	/**
+	 * Handles messages received from the webview.
+	 * Routes messages to appropriate handler methods based on message type.
+	 * 
+	 * @param data - Message data from the webview
+	 */
 	private async handleMessage(data: any): Promise<void> {
 		switch (data.type) {
 			case 'refresh':
@@ -185,6 +218,12 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
+	/**
+	 * Starts an MCP server by name.
+	 * 
+	 * @param name - The name of the MCP to start
+	 * @param isGlobal - Whether this is a global or workspace MCP
+	 */
 	private async startMCP(name: string, isGlobal: boolean): Promise<void> {
 		const mcp = this.getMCP(name, isGlobal);
 		if (!mcp) {
@@ -203,6 +242,12 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		this.updateWebview();
 	}
 
+	/**
+	 * Stops a running MCP server by name.
+	 * 
+	 * @param name - The name of the MCP to stop
+	 * @param isGlobal - Whether this is a global or workspace MCP
+	 */
 	private async stopMCP(name: string, isGlobal: boolean): Promise<void> {
 		const mcp = this.getMCP(name, isGlobal);
 		if (!mcp) {
@@ -225,6 +270,12 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		vscode.window.showInformationMessage(`Stopped ${name}`);
 	}
 
+	/**
+	 * Restarts an MCP server by stopping and starting it.
+	 * 
+	 * @param name - The name of the MCP to restart
+	 * @param isGlobal - Whether this is a global or workspace MCP
+	 */
 	private async restartMCP(name: string, isGlobal: boolean): Promise<void> {
 		const mcp = this.getMCP(name, isGlobal);
 		if (!mcp) {
@@ -239,6 +290,11 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		vscode.window.showInformationMessage(`Restarted ${name}`);
 	}
 
+	/**
+	 * Opens the MCP configuration file in VS Code.
+	 * 
+	 * @param configType - Type of configuration file to open ('global' or 'local')
+	 */
 	private async openConfigFile(configType: string): Promise<void> {
 		try {
 			let configPath: string;
@@ -255,20 +311,32 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 			}
 
 			const uri = vscode.Uri.file(configPath);
-			
-			// Use VS Code's command to open with the proper editor
-			// This will trigger the MCP UI if the file is recognized as an MCP config
 			await vscode.commands.executeCommand('vscode.open', uri);
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to open configuration file: ${error}`);
 		}
 	}
 
+	/**
+	 * Retrieves an MCP item by name from either global or local MCPs.
+	 * 
+	 * @param name - The name of the MCP to retrieve
+	 * @param isGlobal - Whether to search in global or local MCPs
+	 * @returns The MCP item if found, undefined otherwise
+	 */
 	private getMCP(name: string, isGlobal: boolean): MCPItem | undefined {
 		const mcps = isGlobal ? this.globalMCPs : this.localMCPs;
 		return mcps.find((mcp) => mcp.name === name);
 	}
 
+	/**
+	 * Saves environment variables for an MCP.
+	 * Note: Currently updates in-memory only. TODO: Persist to configuration file.
+	 * 
+	 * @param name - The name of the MCP
+	 * @param isGlobal - Whether this is a global or workspace MCP
+	 * @param env - Environment variables to save
+	 */
 	private async saveEnvironment(
 		name: string,
 		isGlobal: boolean,
@@ -278,14 +346,14 @@ export class MCPWebviewProvider implements vscode.WebviewViewProvider {
 		if (mcp) {
 			this.outputChannel.appendLine(`Saving environment for MCP: ${name}`);
 			mcp.config.env = env;
-			// TODO: Write back to MCP configuration file
 			vscode.window.showInformationMessage(`Environment saved for ${name}`);
 			this.updateWebview();
 		}
 	}
 
 	/**
-	 * Cleanup all MCP clients
+	 * Cleans up resources by stopping all MCP clients.
+	 * Called during extension deactivation.
 	 */
 	public async dispose(): Promise<void> {
 		for (const client of this.mcpClients.values()) {

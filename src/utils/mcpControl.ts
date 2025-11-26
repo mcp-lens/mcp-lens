@@ -9,12 +9,17 @@ import { spawn, type ChildProcess } from 'child_process';
 import { type MCPItem } from '../types';
 
 /**
- * Map to track running MCP processes
+ * Map to track running MCP server processes by server name.
  */
 const runningProcesses = new Map<string, ChildProcess>();
 
 /**
- * Start an MCP server
+ * Starts an MCP server as a child process.
+ * Spawns the server using the command and arguments from the MCP configuration.
+ * 
+ * @param mcp - The MCP item containing configuration for the server to start
+ * @param outputChannel - VS Code output channel for logging server output
+ * @returns Promise resolving to true if started successfully, false otherwise
  */
 export async function startMCPServer(mcp: MCPItem, outputChannel: vscode.OutputChannel): Promise<boolean> {
 	try {
@@ -69,7 +74,11 @@ export async function startMCPServer(mcp: MCPItem, outputChannel: vscode.OutputC
 }
 
 /**
- * Stop an MCP server
+ * Stops a running MCP server by sending SIGTERM to its process.
+ * 
+ * @param mcp - The MCP item representing the server to stop
+ * @param outputChannel - VS Code output channel for logging
+ * @returns Promise resolving to true if stopped successfully, false if not running
  */
 export async function stopMCPServer(mcp: MCPItem, outputChannel: vscode.OutputChannel): Promise<boolean> {
 	try {
@@ -94,7 +103,11 @@ export async function stopMCPServer(mcp: MCPItem, outputChannel: vscode.OutputCh
 }
 
 /**
- * Restart an MCP server
+ * Restarts an MCP server by stopping it (if running) and starting it again.
+ * 
+ * @param mcp - The MCP item representing the server to restart
+ * @param outputChannel - VS Code output channel for logging
+ * @returns Promise resolving to true if restarted successfully, false otherwise
  */
 export async function restartMCPServer(mcp: MCPItem, outputChannel: vscode.OutputChannel): Promise<boolean> {
 	outputChannel.appendLine(`\n--- Restarting MCP: ${mcp.name} ---`);
@@ -111,21 +124,30 @@ export async function restartMCPServer(mcp: MCPItem, outputChannel: vscode.Outpu
 }
 
 /**
- * Get MCP server status
+ * Gets the current status of an MCP server.
+ * 
+ * @param mcpName - The name of the MCP server
+ * @returns 'running' if the server has an active process, 'stopped' otherwise
  */
 export function getMCPStatus(mcpName: string): 'running' | 'stopped' {
 	return runningProcesses.has(mcpName) ? 'running' : 'stopped';
 }
 
 /**
- * Check if MCP is running
+ * Checks if an MCP server is currently running.
+ * 
+ * @param mcpName - The name of the MCP server
+ * @returns True if the server is running, false otherwise
  */
 export function isMCPRunning(mcpName: string): boolean {
 	return runningProcesses.has(mcpName);
 }
 
 /**
- * Stop all running MCP servers
+ * Stops all running MCP servers.
+ * Called during extension deactivation to ensure clean shutdown.
+ * 
+ * @param outputChannel - VS Code output channel for logging
  */
 export function stopAllMCPs(outputChannel: vscode.OutputChannel): void {
 	outputChannel.appendLine('\n--- Stopping all MCPs ---');
