@@ -1,14 +1,12 @@
-## Title Format
-<!-- Use conventional commit format: type: brief description -->
-<!-- Examples: -->
-<!-- feat: add new MCP server controls -->
-<!-- fix: resolve webview rendering issue -->
-<!-- docs: update README installation steps -->
-<!-- refactor: simplify MCP client initialization -->
-<!-- chore: update dependencies -->
-
 ## Description
-<!-- Describe the changes made in this PR -->
+
+<!-- Describe the changes made in this PR attach screenshots -->
+
+
+### PR Title Validation
+
+- [ ] PR title pattern: `{type}: Description` or `{type}: [#{GITHUB-ISSUE-ID}] Description`
+
 
 ## Type of Change
 - [ ] 🎯 Feature (new functionality)
