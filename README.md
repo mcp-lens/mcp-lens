@@ -50,7 +50,7 @@ Clean, card-based interface showing all your MCP servers with real-time status i
 ### 2. Server Tools Information
 Comprehensive view of individual MCP servers with detailed tool information and capabilities.
 
-<img src="resources/screenshots/02_mcp-lens-tools-info.png" alt="MCP Server Tools" width="100%">
+<img src="resources/screenshots/02_mcp-lens-tools-info.jpg" alt="MCP Server Tools" width="100%">
 
 ### 3. Configuration Management
 Quick access to configure your MCP servers and edit configuration files.
