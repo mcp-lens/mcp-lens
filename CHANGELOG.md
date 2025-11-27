@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-11-27
+
+### Changed
+- chore: Update icon reference to mcp-lens-icon-v3.png (#26)
+
+
 ## [0.2.0] - 2025-11-26
 
 ### Changed
