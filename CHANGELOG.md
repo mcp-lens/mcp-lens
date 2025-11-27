@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-11-27
+
+### Changed
+- chore: release v1.0.4
+
+
 ## [1.0.4] - 2025-11-27
 
 ### Changed
