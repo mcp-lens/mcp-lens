@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-11-27
+
+### Changed
+- chore: icon updates (#27)
+
+
 ## [0.2.1] - 2025-11-27
 
 ### Changed
