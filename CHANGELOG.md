@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-11-27
+
+### Changed
+- fix: update screenshot from PNG to JPG format (#29)
+
+
 ## [1.0.0] - 2025-11-27
 
 ### Changed
