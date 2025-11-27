@@ -2,7 +2,7 @@
 
 # MCP Lens
 
-<img src="resources/mcp-lens-v1.png" alt="MCP Lens" width="84" height="84">
+<img src="resources/mcp-lens-icon-v3.png" alt="MCP Lens" width="84" height="84">
 
 **An interactive Visual Studio Code extension for exploring and managing Model Context Protocol (MCP) servers**
 
