@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.0.7] - 2025-12-06
+
+### Changed
+- fix: security and ux improvements (#31)
+
+
 ## [1.0.6] - 2025-12-06
 
 ### Changed
