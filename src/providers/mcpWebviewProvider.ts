@@ -927,10 +927,10 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	<header class="header" role="banner">
 		<h1 id="page-title">MCP Servers</h1>
 		<div class="header-actions">
-			<button class="header-btn" onclick="showLogs()" title="Show MCP Lens Logs" aria-label="Show MCP Lens Logs">
+			<button class="header-btn" onclick="showLogs()" title="Logs" aria-label="Logs">
 				<img src="${terminalIconUri}" alt="Logs" />
 			</button>
-			<button class="header-btn" onclick="refresh()" title="Refresh MCP servers list" aria-label="Refresh MCP servers list">
+			<button class="header-btn" onclick="refresh()" title="Refresh" aria-label="Refresh">
 				<img src="${refreshIconUri}" alt="Refresh" />
 			</button>
 		</div>

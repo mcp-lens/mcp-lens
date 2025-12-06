@@ -35,7 +35,6 @@ As MCP servers become integral to AI-powered development workflows, managing mul
 - 🌍 **Automatic Discovery**: Detects MCP configurations from global VS Code settings and workspace `mcp.json` files
 - 🔍 **Beautiful Interface**: Clean, card-based UI with real-time status indicators and tool information
 - ⚡ **Server Control**: Start, stop, and restart MCP servers with one click
-- 📋 **Quick Logs Access**: Instantly view server logs from the output panel
 - 📊 **Live Updates**: See tool counts and status changes as servers load
 - 🎯 **Smart Filtering**: Toggle between global MCPs, workspace MCPs, or view both
 - 🔧 **Quick Configuration**: Direct links to edit your MCP configuration files
