@@ -19,7 +19,7 @@ let mcpLensWebviewProvider: MCPLensWebviewProvider | undefined;
  */
 export function activate(context: vscode.ExtensionContext): void {
 	const outputChannel = vscode.window.createOutputChannel('MCP Lens');
-	mcpLensWebviewProvider = new MCPLensWebviewProvider(context.extensionUri, outputChannel);
+	mcpLensWebviewProvider = new MCPLensWebviewProvider(context.extensionUri, outputChannel, context);
 
 	// Register the webview view provider
 	context.subscriptions.push(
