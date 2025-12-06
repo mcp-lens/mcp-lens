@@ -13,6 +13,9 @@ import { getGlobalMCPPath, getLocalMCPPath } from '../constants';
 import { readMCPFile, mcpFileToItems } from '../utils/fileUtils';
 import { MCPClient } from '../utils/mcpClient';
 
+const CACHE_KEY_GLOBAL = 'mcpLens.globalMCPServers';
+const CACHE_KEY_WORKSPACE = 'mcpLens.workspaceMCPServers';
+
 export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	/** View identifier matching package.json contribution point */
 	public static readonly viewType = 'mcpExplorer';
@@ -24,8 +27,48 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
-		private readonly outputChannel: vscode.OutputChannel
-	) {}
+		private readonly outputChannel: vscode.OutputChannel,
+		private readonly context: vscode.ExtensionContext
+	) {
+		this.restoreFromCache();
+	}
+
+	/**
+	 * Restores MCP server data from the extension's global state cache.
+	 * This ensures data persists across VS Code sessions.
+	 */
+	private restoreFromCache(): void {
+		const cachedGlobal = this.context.globalState.get<MCPItem[]>(CACHE_KEY_GLOBAL);
+		const cachedWorkspace = this.context.workspaceState.get<MCPItem[]>(CACHE_KEY_WORKSPACE);
+		
+		if (cachedGlobal && cachedGlobal.length > 0) {
+			this.globalMCPServers = cachedGlobal.map(mcp => ({
+				...mcp,
+				status: 'stopped' as const,
+				tools: [],
+				toolCount: 0
+			}));
+			this.outputChannel.appendLine(`Restored ${cachedGlobal.length} global MCPs from cache`);
+		}
+		
+		if (cachedWorkspace && cachedWorkspace.length > 0) {
+			this.workspaceMCPServers = cachedWorkspace.map(mcp => ({
+				...mcp,
+				status: 'stopped' as const,
+				tools: [],
+				toolCount: 0
+			}));
+			this.outputChannel.appendLine(`Restored ${cachedWorkspace.length} workspace MCPs from cache`);
+		}
+	}
+
+	/**
+	 * Saves MCP server data to the extension's state cache for persistence.
+	 */
+	private async saveToCache(): Promise<void> {
+		await this.context.globalState.update(CACHE_KEY_GLOBAL, this.globalMCPServers);
+		await this.context.workspaceState.update(CACHE_KEY_WORKSPACE, this.workspaceMCPServers);
+	}
 
 	/**
 	 * Resolves the webview view when it becomes visible.
@@ -42,8 +85,7 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			enableScripts: true,
 			localResourceRoots: [
 				this._extensionUri,
-				vscode.Uri.joinPath(this._extensionUri, 'resources'),
-				vscode.Uri.joinPath(this._extensionUri, 'src', 'webview')
+				vscode.Uri.joinPath(this._extensionUri, 'resources')
 			],
 		};
 
@@ -54,6 +96,11 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 		webviewView.webview.onDidReceiveMessage(async (data) => {
 			await this.handleMessage(data);
 		});
+
+		// Show cached data immediately if available
+		if (this.globalMCPServers.length > 0 || this.workspaceMCPServers.length > 0) {
+			this.updateWebview();
+		}
 
 		// Initiate MCP server discovery
 		this.loadMCPs();
@@ -94,6 +141,9 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			this.outputChannel.appendLine(`Loaded: ${globalPath} (${this.globalMCPServers.length})`);
 		}
 
+		// Save to cache for persistence
+		await this.saveToCache();
+
 		// Update webview first to show MCPs
 		this.updateWebview();
 
@@ -108,6 +158,8 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	private async fetchToolsInBackground(): Promise<void> {
 		await this.enrichMCPData(this.globalMCPServers);
 		await this.enrichMCPData(this.workspaceMCPServers);
+		// Save updated data with tools to cache
+		await this.saveToCache();
 	}
 
 	/**
@@ -209,6 +261,9 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 				break;
 			case 'saveEnvironment':
 				await this.saveEnvironment(data.name, data.isGlobal, data.env);
+				break;
+			case 'showLogs':
+				this.showLogs(data.name);
 				break;
 		}
 	}
@@ -342,6 +397,17 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			vscode.window.showInformationMessage(`Environment saved for ${name}`);
 			this.updateWebview();
 		}
+	}
+
+	/**
+	 * Shows the output logs for a specific MCP server.
+	 * Opens VS Code's output panel and shows the MCP Lens channel.
+	 * 
+	 * @param name - The name of the MCP server to show logs for
+	 */
+	private showLogs(name: string): void {
+		this.outputChannel.appendLine(`Showing logs for MCP: ${name}`);
+		this.outputChannel.show(true);
 	}
 
 	/**
@@ -658,6 +724,23 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			cursor: not-allowed;
 		}
 
+		.logs-link {
+			font-size: 11px;
+			font-weight: 600;
+			color: var(--vscode-textLink-foreground);
+			text-decoration: none;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			padding: 4px 8px;
+			margin-left: auto;
+			cursor: pointer;
+			transition: opacity 0.2s ease;
+		}
+
+		.logs-link:hover {
+			opacity: 0.85;
+		}
+
 		/* SVG icon styling */
 		.action-btn img {
 			width: 22px;
@@ -887,6 +970,21 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 		let localMCPs = [];
 		let expandedCard = null;
 
+		/**
+		 * Escapes HTML special characters to prevent XSS attacks.
+		 * @param {string} str - The string to escape
+		 * @returns {string} The escaped string safe for HTML insertion
+		 */
+		function escapeHtml(str) {
+			if (str === null || str === undefined) return '';
+			return String(str)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+
 		window.addEventListener('message', event => {
 			const message = event.data;
 			if (message.type === 'update') {
@@ -920,7 +1018,18 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			vscode.postMessage({ type: 'restartMCP', name, isGlobal });
 		}
 
+		function showLogs(name, isGlobal, event) {
+			event.stopPropagation();
+			vscode.postMessage({ type: 'showLogs', name, isGlobal });
+		}
+
 		function getDisplayName(name) {
+			if (!name) return '';
+			// If name ends with /mcp, remove it and return the rest
+			if (name.toLowerCase().endsWith('/mcp')) {
+				return name.slice(0, -4);
+			}
+			// Otherwise, return the last segment after /
 			if (name.includes('/')) {
 				const parts = name.split('/');
 				return parts[parts.length - 1];
@@ -951,9 +1060,12 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			const status = getStatusClass(mcp);
 			const isExpanded = expandedCard === mcp.name;
 			const toolCount = mcp.toolCount || mcp.tools?.length || 0;
-			const displayName = getDisplayName(mcp.name);
-			const mcpType = mcp.config?.type || 'stdio';
-			const typeInfo = getTypeInfo(mcpType);
+			const displayName = escapeHtml(getDisplayName(mcp.name));
+			const safeName = escapeHtml(mcp.name);
+			const mcpType = escapeHtml(mcp.config?.type || 'stdio');
+			const typeInfo = getTypeInfo(mcp.config?.type || 'stdio');
+			const safeTypeDescription = escapeHtml(typeInfo.description);
+			const safeTypeIcon = escapeHtml(typeInfo.icon);
 
 			return \`
 				<div class="mcp-card \${isExpanded ? 'expanded' : ''}" 
@@ -961,13 +1073,13 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 					 tabindex="0" 
 					 aria-expanded="\${isExpanded}" 
 					 aria-label="\${displayName} MCP server, \${status} status, \${toolCount} tools available"
-					 onclick="toggleCard('\${mcp.name}', \${isGlobal})"
-					 onkeydown="handleKeyDown(event, (e) => toggleCard('\${mcp.name}', \${isGlobal}))">
+					 onclick="toggleCard('\${safeName}', \${isGlobal})"
+					 onkeydown="handleKeyDown(event, (e) => toggleCard('\${safeName}', \${isGlobal}))">
 					<div class="card-header">
 						<div>
 							<div class="card-title">\${displayName}</div>
-							<div class="card-type" title="\${typeInfo.description}" aria-label="Server type: \${typeInfo.description}">
-								<span aria-hidden="true">\${typeInfo.icon}</span> \${mcpType.toUpperCase()}
+							<div class="card-type" title="\${safeTypeDescription}" aria-label="Server type: \${safeTypeDescription}">
+								<span aria-hidden="true">\${safeTypeIcon}</span> \${mcpType.toUpperCase()}
 							</div>
 						</div>
 						<span class="status-badge \${status}" role="status" aria-label="Status: \${status}">
@@ -987,21 +1099,21 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 					<div class="expanded-details">
 						\${mcp.config?.env && Object.keys(mcp.config.env).length > 0 ? \`
 							<div class="env-section" onclick="event.stopPropagation()" style="padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
-								<label class="detail-label" for="env-\${mcp.name}">Environment Variables (JSON):</label>
+								<label class="detail-label" for="env-\${safeName}">Environment Variables (JSON):</label>
 								<textarea 
 									class="env-editor" 
-									id="env-\${mcp.name}" 
+									id="env-\${safeName}" 
 									rows="5"
 									aria-label="Environment variables configuration in JSON format for \${displayName}"
 									onclick="event.stopPropagation()"
-									onchange="markEnvChanged('\${mcp.name}')"
-								>\${JSON.stringify(mcp.config.env, null, 2)}</textarea>
+									onchange="markEnvChanged('\${safeName}')"
+								>\${escapeHtml(JSON.stringify(mcp.config.env, null, 2))}</textarea>
 								<button 
 									class="save-env-btn" 
-									id="save-env-\${mcp.name}" 
+									id="save-env-\${safeName}" 
 									style="display: none;"
 									aria-label="Save environment variable changes for \${displayName}"
-									onclick="saveEnvironment('\${mcp.name}', \${isGlobal}, event)"
+									onclick="saveEnvironment('\${safeName}', \${isGlobal}, event)"
 								><span aria-hidden="true">💾</span> Save Changes</button>
 							</div>
 						\` : ''}
@@ -1009,24 +1121,26 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 							<div class="tools-section" onclick="event.stopPropagation()" style="\${mcp.config?.env && Object.keys(mcp.config.env).length > 0 ? 'margin-top: 12px;' : 'padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--vscode-panel-border);'}">
 								<button class="tools-toggle" 
 									 aria-expanded="false" 
-									 aria-controls="tools-\${mcp.name}"
+									 aria-controls="tools-\${safeName}"
 									 aria-label="Toggle tools list for \${displayName}, \${toolCount} tools available"
-									 onclick="toggleTools('\${mcp.name}', event)">
+									 onclick="toggleTools('\${safeName}', event)">
 									<span class="toggle-icon" aria-hidden="true">▶</span>
 									<span>Tools (\${toolCount})</span>
 								</button>
-								<div class="tools-list" id="tools-\${mcp.name}" role="list" aria-label="Available tools" style="display: none;">
-									\${(mcp.tools || []).map(tool => 
-										\`<div class="tool-item" 
+								<div class="tools-list" id="tools-\${safeName}" role="list" aria-label="Available tools" style="display: none;">
+									\${(mcp.tools || []).map(tool => {
+										const safeToolName = escapeHtml(tool.name);
+										const safeToolDesc = escapeHtml(tool.description || 'No description');
+										return \`<div class="tool-item" 
 											 role="listitem" 
 											 tabindex="0"
-											 title="\${tool.description || ''}" 
-											 aria-label="Tool: \${tool.name}, \${tool.description || 'No description'}"
+											 title="\${safeToolDesc}" 
+											 aria-label="Tool: \${safeToolName}, \${safeToolDesc}"
 											 onclick="event.stopPropagation()">
-											<div class="tool-name">\${tool.name}</div>
-											<div class="tool-description">\${tool.description || 'No description'}</div>
-										</div>\`
-									).join('')}
+											<div class="tool-name">\${safeToolName}</div>
+											<div class="tool-description">\${safeToolDesc}</div>
+										</div>\`;
+									}).join('')}
 								</div>
 							</div>
 						\` : ''}
@@ -1036,24 +1150,29 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 						<button class="action-btn start-btn" 
 							 title="Start \${displayName}"
 							 aria-label="Start \${displayName} server"
-							 onclick="startMCP('\${mcp.name}', \${isGlobal}, event)" 
+							 onclick="startMCP('\${safeName}', \${isGlobal}, event)" 
 							 \${status === 'running' ? 'disabled aria-disabled="true"' : ''}>
 							<img src="\${ICON_PLAY}" alt="Start" />
 						</button>
 						<button class="action-btn stop-btn" 
 							 title="Stop \${displayName}"
 							 aria-label="Stop \${displayName} server"
-							 onclick="stopMCP('\${mcp.name}', \${isGlobal}, event)" 
+							 onclick="stopMCP('\${safeName}', \${isGlobal}, event)" 
 							 \${status !== 'running' ? 'disabled aria-disabled="true"' : ''}>
 							<img src="\${ICON_STOP}" alt="Stop" />
 						</button>
 						<button class="action-btn restart-btn" 
 							 title="Restart \${displayName}"
 							 aria-label="Restart \${displayName} server"
-							 onclick="restartMCP('\${mcp.name}', \${isGlobal}, event)" 
+							 onclick="restartMCP('\${safeName}', \${isGlobal}, event)" 
 							 \${status !== 'running' ? 'disabled aria-disabled="true"' : ''}>
 							<img src="\${ICON_RESTART}" alt="Restart" />
 						</button>
+						<a class="logs-link" 
+							 href="#"
+							 title="Show logs for \${displayName}"
+							 aria-label="Show logs for \${displayName}"
+							 onclick="showLogs('\${safeName}', \${isGlobal}, event)">LOGS</a>
 					</div>
 				</div>
 			\`;
