@@ -112,11 +112,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	 * background discovery of available tools from each server.
 	 */
 	public async loadMCPs(): Promise<void> {
-		// Reload webview HTML to ensure fresh content with latest resources
-		if (this._view) {
-			this._view.webview.html = this._getHtmlForWebview(this._view.webview);
-		}
-		
 		// Stop all existing client connections
 		for (const client of this.mcpClients.values()) {
 			await client.stop();
@@ -263,7 +258,7 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 				await this.saveEnvironment(data.name, data.isGlobal, data.env);
 				break;
 			case 'showLogs':
-				this.showLogs(data.name);
+				this.outputChannel.show(true);
 				break;
 		}
 	}
@@ -400,17 +395,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	/**
-	 * Shows the output logs for a specific MCP server.
-	 * Opens VS Code's output panel and shows the MCP Lens channel.
-	 * 
-	 * @param name - The name of the MCP server to show logs for
-	 */
-	private showLogs(name: string): void {
-		this.outputChannel.appendLine(`Showing logs for MCP: ${name}`);
-		this.outputChannel.show(true);
-	}
-
-	/**
 	 * Cleans up resources by stopping all MCP clients.
 	 * Called during extension deactivation.
 	 */
@@ -440,6 +424,7 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 		const stopIconUri = getIconUri('stop');
 		const restartIconUri = getIconUri('restart');
 		const refreshIconUri = getIconUri('refresh');
+		const terminalIconUri = getIconUri('terminal');
 		
 		this.outputChannel.appendLine(`Icon URIs: play=${playIconUri}, stop=${stopIconUri}`);
 		
@@ -482,7 +467,13 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			letter-spacing: 0.5px;
 		}
 
-	.refresh-btn {
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.header-btn {
 		background: transparent;
 		color: var(--vscode-foreground);
 		border: none;
@@ -497,7 +488,7 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 		border-radius: 50%;
 	}
 
-	.refresh-btn:hover {
+	.header-btn:hover {
 		opacity: 0.85;
 	}		.section {
 			margin-bottom: 20px;
@@ -724,23 +715,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			cursor: not-allowed;
 		}
 
-		.logs-link {
-			font-size: 11px;
-			font-weight: 600;
-			color: var(--vscode-textLink-foreground);
-			text-decoration: none;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-			padding: 4px 8px;
-			margin-left: auto;
-			cursor: pointer;
-			transition: opacity 0.2s ease;
-		}
-
-		.logs-link:hover {
-			opacity: 0.85;
-		}
-
 		/* SVG icon styling */
 		.action-btn img {
 			width: 22px;
@@ -952,9 +926,14 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 <body>
 	<header class="header" role="banner">
 		<h1 id="page-title">MCP Servers</h1>
-		<button class="refresh-btn" onclick="refresh()" title="Refresh MCP servers list" aria-label="Refresh MCP servers list">
-			<img src="${refreshIconUri}" alt="Refresh" />
-		</button>
+		<div class="header-actions">
+			<button class="header-btn" onclick="showLogs()" title="Logs" aria-label="Logs">
+				<img src="${terminalIconUri}" alt="Logs" />
+			</button>
+			<button class="header-btn" onclick="refresh()" title="Refresh" aria-label="Refresh">
+				<img src="${refreshIconUri}" alt="Refresh" />
+			</button>
+		</div>
 	</header>
 
 	<main id="content" role="main" aria-labelledby="page-title"></main>
@@ -1018,9 +997,8 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 			vscode.postMessage({ type: 'restartMCP', name, isGlobal });
 		}
 
-		function showLogs(name, isGlobal, event) {
-			event.stopPropagation();
-			vscode.postMessage({ type: 'showLogs', name, isGlobal });
+		function showLogs() {
+			vscode.postMessage({ type: 'showLogs' });
 		}
 
 		function getDisplayName(name) {
@@ -1168,11 +1146,6 @@ export class MCPLensWebviewProvider implements vscode.WebviewViewProvider {
 							 \${status !== 'running' ? 'disabled aria-disabled="true"' : ''}>
 							<img src="\${ICON_RESTART}" alt="Restart" />
 						</button>
-						<a class="logs-link" 
-							 href="#"
-							 title="Show logs for \${displayName}"
-							 aria-label="Show logs for \${displayName}"
-							 onclick="showLogs('\${safeName}', \${isGlobal}, event)">LOGS</a>
 					</div>
 				</div>
 			\`;
