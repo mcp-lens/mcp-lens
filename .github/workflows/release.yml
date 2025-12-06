@@ -27,6 +27,10 @@ permissions:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    # Skip if this is a release commit from the bot itself
+    if: >-
+      github.event_name == 'workflow_dispatch' || 
+      !startsWith(github.event.head_commit.message, 'chore: release v')
     environment:
       name: production
       url: https://marketplace.visualstudio.com/items?itemName=giri-jeedigunta.mcp-lens
