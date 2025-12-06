@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-12-06
+
+### Changed
+- feat: updated log enhancements (#32)
+
+
 ## [1.0.9] - 2025-12-06
 
 ### Changed
