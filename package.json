@@ -189,7 +189,7 @@
     "@types/node": "22.x",
     "typescript-eslint": "^8.65.0",
     "eslint": "^10.1.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^3.1.0"
   }
